@@ -22,7 +22,7 @@ from tower_cli.api import client
 from tower_cli.utils import debug, exceptions as exc, types
 
 
-class Resource(models.MonitorableResource):
+class Resource(models.WritableResource, models.MonitorableResource):
     cli_help = 'Manage projects within Ansible Tower.'
     endpoint = '/projects/'
 

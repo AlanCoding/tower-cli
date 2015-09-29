@@ -404,7 +404,7 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
         return Subcommand(resource=self)
 
 
-class Resource(BaseResource):
+class ReadableResource(BaseResource):
     """Abstract subclass of BaseResource that adds the standard create,
     modify, list, get, and delete methods.
     """
@@ -487,6 +487,112 @@ class Resource(BaseResource):
 
         # Return the response.
         return resp
+
+    @resources.command
+    def delete(self, pk=None, fail_on_missing=False, **kwargs):
+        """Remove the given object.
+
+        If `fail_on_missing` is True, then the object's not being found is
+        considered a failure; otherwise, a success with no change is reported.
+        """
+        # If we weren't given a primary key, determine which record we're
+        # deleting.
+        if not pk:
+            existing_data = self._lookup(fail_on_missing=fail_on_missing,
+                                         **kwargs)
+            if not existing_data:
+                return {'changed': False}
+            pk = existing_data['id']
+
+        # Attempt to delete the record.
+        # If it turns out the record doesn't exist, handle the 404
+        # appropriately (this is an okay response if `fail_on_missing` is
+        # False).
+        url = '%s%d/' % (self.endpoint, pk)
+        debug.log('DELETE %s' % url, fg='blue', bold=True)
+        try:
+            client.delete(url)
+            return {'changed': True}
+        except exc.NotFound:
+            if fail_on_missing:
+                raise
+            return {'changed': False}
+
+    # Convenience wrappers around `read` and `write`:
+    #   - read:  get, list
+    #   - write: create, modify
+
+    @resources.command(ignore_defaults=True)
+    def get(self, pk=None, **kwargs):
+        """Return one and exactly one object.
+
+        Lookups may be through a primary key, specified as a positional
+        argument, and/or through filters specified through keyword arguments.
+
+        If the number of results does not equal one, raise an exception.
+        """
+        if kwargs.pop('include_debug_header', True):
+            debug.log('Getting the record.', header='details')
+        response = self.read(pk=pk, fail_on_no_results=True,
+                             fail_on_multiple_results=True, **kwargs)
+        return response['results'][0]
+
+    @resources.command(ignore_defaults=True, no_args_is_help=False)
+    @click.option('all_pages', '-a', '--all-pages',
+                  is_flag=True, default=False, show_default=True,
+                  help='If set, collate all pages of content from the API '
+                       'when returning results.')
+    @click.option('--page', default=1, type=int, show_default=True,
+                  help='The page to show. Ignored if --all-pages '
+                       'is sent.')
+    @click.option('-Q', '--query', required=False, nargs=2, multiple=True,
+                  help='A key and value to be passed as an HTTP query string '
+                       'key and value to the Tower API. Will be run through '
+                       'HTTP escaping. This argument may be sent multiple '
+                       'times.\nExample: `--query foo bar` would be passed '
+                       'to Tower as ?foo=bar')
+    def list(self, all_pages=False, **kwargs):
+        """Return a list of objects.
+
+        If one or more filters are provided through keyword arguments,
+        filter the results accordingly.
+
+        If no filters are provided, return all results.
+        """
+        # If the `all_pages` flag is set, then ignore any page that might
+        # also be sent.
+        if all_pages:
+            kwargs.pop('page', None)
+
+        # Get the response.
+        debug.log('Getting records.', header='details')
+        response = self.read(**kwargs)
+
+        # Alter the "next" and "previous" to reflect simple integers,
+        # rather than URLs, since this endpoint just takes integers.
+        for key in ('next', 'previous'):
+            if not response[key]:
+                continue
+            match = re.search(r'page=(?P<num>[\d]+)', response[key])
+            response[key] = int(match.groupdict()['num'])
+
+        # If we were asked for all pages, keep retrieving pages until we
+        # have them all.
+        if all_pages and response['next']:
+            cursor = copy(response)
+            while cursor['next']:
+                cursor = self.list(**dict(kwargs, page=cursor['next']))
+                response['results'] += cursor['results']
+
+        # Done; return the response
+        return response
+
+
+class WritableResource(ReadableResource):
+    """Includes write and modify functions. This is seperated from other
+    functions so that items which should not be modified (past job runs)
+    can have the methods excluded."""
+    abstract = True
 
     def write(self, pk=None, create_on_missing=False, fail_on_found=False,
               force_on_exists=True, **kwargs):
@@ -597,103 +703,24 @@ class Resource(BaseResource):
         return answer
 
     @resources.command
-    def delete(self, pk=None, fail_on_missing=False, **kwargs):
-        """Remove the given object.
+    @click.option('--create-on-missing', default=False,
+                  show_default=True, type=bool, is_flag=True,
+                  help='If used, and if options rather than a primary key are '
+                       'used to attempt to match a record, will create the '
+                       'record if it does not exist. This is an alias to '
+                       '`create --force-on-exists`.')
+    def modify(self, pk=None, create_on_missing=False, **kwargs):
+        """Modify an already existing object.
 
-        If `fail_on_missing` is True, then the object's not being found is
-        considered a failure; otherwise, a success with no change is reported.
+        Fields in the resource's `identity` tuple can be used in lieu of a
+        primary key for a lookup; in such a case, only other fields are
+        written.
+
+        To modify unique fields, you must use the primary key for the lookup.
         """
-        # If we weren't given a primary key, determine which record we're
-        # deleting.
-        if not pk:
-            existing_data = self._lookup(fail_on_missing=fail_on_missing,
-                                         **kwargs)
-            if not existing_data:
-                return {'changed': False}
-            pk = existing_data['id']
-
-        # Attempt to delete the record.
-        # If it turns out the record doesn't exist, handle the 404
-        # appropriately (this is an okay response if `fail_on_missing` is
-        # False).
-        url = '%s%d/' % (self.endpoint, pk)
-        debug.log('DELETE %s' % url, fg='blue', bold=True)
-        try:
-            client.delete(url)
-            return {'changed': True}
-        except exc.NotFound:
-            if fail_on_missing:
-                raise
-            return {'changed': False}
-
-    # Convenience wrappers around `read` and `write`:
-    #   - read:  get, list
-    #   - write: create, modify
-
-    @resources.command(ignore_defaults=True)
-    def get(self, pk=None, **kwargs):
-        """Return one and exactly one object.
-
-        Lookups may be through a primary key, specified as a positional
-        argument, and/or through filters specified through keyword arguments.
-
-        If the number of results does not equal one, raise an exception.
-        """
-        if kwargs.pop('include_debug_header', True):
-            debug.log('Getting the record.', header='details')
-        response = self.read(pk=pk, fail_on_no_results=True,
-                             fail_on_multiple_results=True, **kwargs)
-        return response['results'][0]
-
-    @resources.command(ignore_defaults=True, no_args_is_help=False)
-    @click.option('all_pages', '-a', '--all-pages',
-                  is_flag=True, default=False, show_default=True,
-                  help='If set, collate all pages of content from the API '
-                       'when returning results.')
-    @click.option('--page', default=1, type=int, show_default=True,
-                  help='The page to show. Ignored if --all-pages '
-                       'is sent.')
-    @click.option('-Q', '--query', required=False, nargs=2, multiple=True,
-                  help='A key and value to be passed as an HTTP query string '
-                       'key and value to the Tower API. Will be run through '
-                       'HTTP escaping. This argument may be sent multiple '
-                       'times.\nExample: `--query foo bar` would be passed '
-                       'to Tower as ?foo=bar')
-    def list(self, all_pages=False, **kwargs):
-        """Return a list of objects.
-
-        If one or more filters are provided through keyword arguments,
-        filter the results accordingly.
-
-        If no filters are provided, return all results.
-        """
-        # If the `all_pages` flag is set, then ignore any page that might
-        # also be sent.
-        if all_pages:
-            kwargs.pop('page', None)
-
-        # Get the response.
-        debug.log('Getting records.', header='details')
-        response = self.read(**kwargs)
-
-        # Alter the "next" and "previous" to reflect simple integers,
-        # rather than URLs, since this endpoint just takes integers.
-        for key in ('next', 'previous'):
-            if not response[key]:
-                continue
-            match = re.search(r'page=(?P<num>[\d]+)', response[key])
-            response[key] = int(match.groupdict()['num'])
-
-        # If we were asked for all pages, keep retrieving pages until we
-        # have them all.
-        if all_pages and response['next']:
-            cursor = copy(response)
-            while cursor['next']:
-                cursor = self.list(**dict(kwargs, page=cursor['next']))
-                response['results'] += cursor['results']
-
-        # Done; return the response
-        return response
+        force_on_exists = kwargs.pop('force_on_exists', True)
+        return self.write(pk, create_on_missing=create_on_missing,
+                          force_on_exists=force_on_exists, **kwargs)
 
     @resources.command
     @click.option('--fail-on-found', default=False,
@@ -713,26 +740,6 @@ class Resource(BaseResource):
         do not fail (unless `fail_on_found` is set).
         """
         return self.write(create_on_missing=True, fail_on_found=fail_on_found,
-                          force_on_exists=force_on_exists, **kwargs)
-
-    @resources.command
-    @click.option('--create-on-missing', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, and if options rather than a primary key are '
-                       'used to attempt to match a record, will create the '
-                       'record if it does not exist. This is an alias to '
-                       '`create --force-on-exists`.')
-    def modify(self, pk=None, create_on_missing=False, **kwargs):
-        """Modify an already existing object.
-
-        Fields in the resource's `identity` tuple can be used in lieu of a
-        primary key for a lookup; in such a case, only other fields are
-        written.
-
-        To modify unique fields, you must use the primary key for the lookup.
-        """
-        force_on_exists = kwargs.pop('force_on_exists', True)
-        return self.write(pk, create_on_missing=create_on_missing,
                           force_on_exists=force_on_exists, **kwargs)
 
     def _assoc(self, url_fragment, me, other):
@@ -806,7 +813,7 @@ class Resource(BaseResource):
             return {}
 
 
-class MonitorableResource(Resource):
+class MonitorableResource(BaseResource):
     """A resource that is able to be tied to a running task, such as a job
     or project, and thus able to be monitored.
     """

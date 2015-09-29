@@ -28,11 +28,12 @@ from tower_cli.utils import debug, exceptions as exc, types
 from tower_cli.utils import parser
 
 
-class Resource(models.MonitorableResource):
+class Resource(models.ReadableResource, models.MonitorableResource):
     """A resource for jobs.
 
-    As a base resource, this resource does *not* have the normal create, list,
-    etc. methods.
+    This resource has ordinary list and get methods,
+    but it does not have create or modify.
+    Instead of being created, a job is launched.
     """
     cli_help = 'Launch or monitor jobs.'
     endpoint = '/jobs/'

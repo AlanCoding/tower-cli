@@ -19,7 +19,7 @@ from tower_cli import models, resources
 from tower_cli.utils import types
 
 
-class Resource(models.Resource):
+class Resource(models.WritableResource):
     cli_help = 'Manage hosts belonging to a group within an inventory.'
     endpoint = '/hosts/'
     identity = ('inventory', 'name')

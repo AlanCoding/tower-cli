@@ -22,7 +22,7 @@ from tower_cli.utils import types
 from tower_cli.utils import parser
 
 
-class Resource(models.Resource):
+class Resource(models.WritableResource):
     cli_help = 'Manage job templates.'
     endpoint = '/job_templates/'
 

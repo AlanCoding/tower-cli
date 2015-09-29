@@ -59,7 +59,7 @@ class GroupTests(unittest.TestCase):
         """Test that anything not covered by the subclass implementation
         simply calls the superclass implementation.
         """
-        with mock.patch.object(models.Resource, 'list') as super_list:
+        with mock.patch.object(models.WritableResource, 'list') as super_list:
             self.gr.list(root=False)
             super_list.assert_called_once_with()
 
@@ -67,7 +67,8 @@ class GroupTests(unittest.TestCase):
         """Establish that if we try to create a group that already exists,
         that we return the standard changed: false.
         """
-        with mock.patch.object(models.Resource, 'create') as super_create:
+        with mock.patch.object(models.WritableResource, 'create') \
+                as super_create:
             super_create.return_value = {'changed': False, 'id': 1}
             with client.test_mode as t:
                 answer = self.gr.create(name='Foo', inventory=1,
@@ -128,7 +129,8 @@ class GroupTests(unittest.TestCase):
         """Establish that if we attempt to modify a group and the group itself
         exists, that we do not attempt to hit the inventory source at all.
         """
-        with mock.patch.object(models.Resource, 'modify') as super_modify:
+        with mock.patch.object(models.WritableResource, 'modify') \
+                as super_modify:
             super_modify.return_value = {'changed': False}
             with client.test_mode as t:
                 self.gr.modify(42, source='rax',

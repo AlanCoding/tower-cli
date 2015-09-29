@@ -73,7 +73,7 @@ class ResourceMetaTests(unittest.TestCase):
         on classes inherited from Resource.
         """
         # Create the resource.
-        class MyResource(models.Resource):
+        class MyResource(models.WritableResource):
             endpoint = '/bogus/'
 
         # Establish it has the commands we expect.
@@ -85,7 +85,7 @@ class ResourceMetaTests(unittest.TestCase):
         superclass implementation options.
         """
         # Create the subclass resource, overriding a superclass command.
-        class MyResource(models.Resource):
+        class MyResource(models.WritableResource):
             endpoint = '/bogus/'
 
             @resources.command
@@ -102,7 +102,7 @@ class ResourceMetaTests(unittest.TestCase):
         the resource.
         """
         # Create the resource.
-        class MyResource(models.Resource):
+        class MyResource(models.WritableResource):
             endpoint = '/bogus/'
 
             foo = models.Field(unique=True)
@@ -123,14 +123,14 @@ class ResourceMetaTests(unittest.TestCase):
         raises TypeError.
         """
         with self.assertRaises(TypeError):
-            class MyResource(models.Resource):
+            class MyResource(models.WritableResource):
                 pass
 
     def test_endpoint_normalization(self):
         """Establish that the endpoints have leading and trailing slashes
         added if they are not present on a resource.
         """
-        class MyResource(models.Resource):
+        class MyResource(models.WritableResource):
             endpoint = 'foo'
         self.assertEqual(MyResource.endpoint, '/foo/')
 
@@ -143,7 +143,7 @@ class SubcommandTests(unittest.TestCase):
         """Install a resource instance sufficient for testing common
         things with subcommands.
         """
-        class BasicResource(models.Resource):
+        class BasicResource(models.WritableResource):
             endpoint = '/basic/'
             name = models.Field(unique=True)
         self.resource = BasicResource()
@@ -256,7 +256,7 @@ class SubcommandTests(unittest.TestCase):
         """
         # Create a resource with a field that is an option and another
         # field that isn't.
-        class NoOptionResource(models.Resource):
+        class NoOptionResource(models.WritableResource):
             endpoint = '/nor/'
 
             yes = models.Field()
@@ -275,7 +275,7 @@ class SubcommandTests(unittest.TestCase):
         key is used for the field name instead of the implicit name.
         """
         # Create a resource with a field that has an explicit key.
-        class ExplicitKeyResource(models.Resource):
+        class ExplicitKeyResource(models.WritableResource):
             endpoint = '/ekr/'
 
             option_name = models.Field('internal_name')
@@ -295,7 +295,7 @@ class SubcommandTests(unittest.TestCase):
         that the automatic docstring replacement is gramatically correct.
         """
         # Create a resource with an approriate name.
-        class Oreo(models.Resource):
+        class Oreo(models.WritableResource):
             resource_name = 'Oreo cookie'   # COOOOOOKIES!!!!
             endpoint = '/oreo/'
 
@@ -308,7 +308,7 @@ class SubcommandTests(unittest.TestCase):
         replacement is correct.
         """
         # Create a resource with an approriate name.
-        class Oreo(models.Resource):
+        class Oreo(models.WritableResource):
             resource_name = 'telephony'
             endpoint = '/telephonies/'
 
@@ -458,7 +458,7 @@ class ResourceTests(unittest.TestCase):
     def setUp(self):
         # Create a resource class that can be used across this particular
         # suite.
-        class FooResource(models.Resource):
+        class FooResource(models.WritableResource):
             endpoint = '/foo/'
             name = models.Field(unique=True)
             description = models.Field(required=False)
@@ -650,7 +650,7 @@ class ResourceTests(unittest.TestCase):
         """
         # Create a resource with a required field that isn't the name
         # field.
-        class BarResource(models.Resource):
+        class BarResource(models.WritableResource):
             endpoint = '/bar/'
             name = models.Field(unique=True)
             required = models.Field()

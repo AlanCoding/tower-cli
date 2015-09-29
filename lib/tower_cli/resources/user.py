@@ -16,7 +16,7 @@
 from tower_cli import models
 
 
-class Resource(models.Resource):
+class Resource(models.WritableResource):
     cli_help = 'Manage users within Ansible Tower.'
     endpoint = '/users/'
     identity = ('username',)

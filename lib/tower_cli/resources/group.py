@@ -23,7 +23,7 @@ INVENTORY_SOURCES = ['manual', 'ec2', 'rax', 'vmware',
                      'gce', 'azure', 'openstack']
 
 
-class Resource(models.Resource):
+class Resource(models.WritableResource):
     cli_help = 'Manage groups belonging to an inventory.'
     endpoint = '/groups/'
     identity = ('inventory', 'name')
