@@ -20,15 +20,13 @@ from distutils.version import LooseVersion
 
 import click
 
-from sdict import adict
-
 from tower_cli import models, get_resource, resources
 from tower_cli.api import client
-from tower_cli.utils import debug, exceptions as exc, types
+from tower_cli.utils import debug, types
 from tower_cli.utils import parser
 
 
-class Resource(models.ReadableResource, models.MonitorableResource):
+class Resource(models.ReadableResource, models.ExeResource):
     """A resource for jobs.
 
     This resource has ordinary list and get methods,
@@ -38,8 +36,19 @@ class Resource(models.ReadableResource, models.MonitorableResource):
     cli_help = 'Launch or monitor jobs.'
     endpoint = '/jobs/'
 
-    @resources.command
-    @click.option('--job-template', type=types.Related('job_template'))
+    job_template = models.Field(
+        type=types.Related('job_template'), required=True, display=True
+    )
+    job_explanation = models.Field(required=False, display=False)
+    created = models.Field(required=False, display=True)
+    status = models.Field(required=False, display=True)
+    elapsed = models.Field(required=False, display=True)
+
+    @resources.command(
+        use_fields_as_options=('job_template', 'job_explanation')
+    )
+    # @click.option('--job-template', type=types.Related('job_template'),
+    #               help='Job template to base run off of.')
     @click.option('--monitor', is_flag=True, default=False,
                   help='If sent, immediately calls `job monitor` on the newly '
                        'launched job rather than exiting with a success.')
@@ -158,45 +167,3 @@ class Resource(models.ReadableResource, models.MonitorableResource):
             'changed': True,
             'id': job_id,
         }
-
-    @resources.command
-    @click.option('--detail', is_flag=True, default=False,
-                  help='Print more detail.')
-    def status(self, pk, detail=False):
-        """Print the current job status."""
-        # Get the job from Ansible Tower.
-        debug.log('Asking for job status.', header='details')
-        job = client.get('/jobs/%d/' % pk).json()
-
-        # In most cases, we probably only want to know the status of the job
-        # and the amount of time elapsed. However, if we were asked for
-        # verbose information, provide it.
-        if detail:
-            return job
-
-        # Print just the information we need.
-        return adict({
-            'elapsed': job['elapsed'],
-            'failed': job['failed'],
-            'status': job['status'],
-        })
-
-    @resources.command
-    @click.option('--fail-if-not-running', is_flag=True, default=False,
-                  help='Fail loudly if the job is not currently running.')
-    def cancel(self, pk, fail_if_not_running=False):
-        """Cancel a currently running job.
-
-        Fails with a non-zero exit status if the job cannot be canceled.
-        """
-        # Attempt to cancel the job.
-        try:
-            client.post('/jobs/%d/cancel/' % pk)
-            changed = True
-        except exc.MethodNotAllowed:
-            changed = False
-            if fail_if_not_running:
-                raise exc.TowerCLIError('Job not running.')
-
-        # Return a success.
-        return adict({'status': 'canceled', 'changed': changed})

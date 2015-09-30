@@ -32,7 +32,9 @@ class LaunchTests(unittest.TestCase):
         """
         with client.test_mode as t:
             t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
-            t.register_json('/config/', {'version': '2.2.0'}, method='GET')
+            t.register_json('/', {
+                'ad_hoc_commands': '/api/v1/ad_hoc_commands/'
+                }, method='GET')
             t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
             result = self.res.launch(inventory=1, machine_credential=2,
                                      module_args="echo 'hi'")
@@ -44,7 +46,7 @@ class LaunchTests(unittest.TestCase):
         """
         with client.test_mode as t:
             t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
-            t.register_json('/config/', {'version': '2.1.0'}, method='GET')
+            t.register_json('/', {}, method='GET')
             t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
             with self.assertRaises(exc.TowerCLIError):
                 self.res.launch(inventory=1, machine_credential=2,
@@ -56,7 +58,9 @@ class LaunchTests(unittest.TestCase):
         """
         with client.test_mode as t:
             t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
-            t.register_json('/config/', {'version': '2.3.0'}, method='GET')
+            t.register_json('/', {
+                'ad_hoc_commands': '/api/v1/ad_hoc_commands/'
+                }, method='GET')
             t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
 
             with mock.patch.object(type(self.res), 'monitor') as monitor:

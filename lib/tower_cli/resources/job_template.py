@@ -58,8 +58,7 @@ class Resource(models.WritableResource):
     job_tags = models.Field(required=False, display=False)
     skip_tags = models.Field(required=False, display=False)
     extra_vars = models.Field(required=False, display=False)
-    become_enabled = models.Field(type=bool, required=False, display=False,
-                                  show_default=True, default=False)
+    become_enabled = models.Field(type=bool, required=False, display=False)
 
     @resources.command
     @click.option('--extra-vars', required=False, multiple=True,

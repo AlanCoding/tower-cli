@@ -24,6 +24,7 @@ import re
 import sys
 import time
 from copy import copy
+from sdict import adict
 
 import six
 
@@ -418,6 +419,16 @@ class ReadableResource(BaseResource):
     # `get` and `list` are wrappers around `read` and `create` and
     # `modify` are wrappers around `write`.
 
+    def _pop_none(self, kwargs):
+        """Remove default values (anything where the value is None).
+        click is unfortunately bad at the way it sends through unspecified
+        defaults."""
+        for key, value in copy(kwargs).items():
+            if value is None:
+                kwargs.pop(key)
+            if hasattr(value, 'read'):
+                kwargs[key] = value.read()
+
     def read(self, pk=None, fail_on_no_results=False,
              fail_on_multiple_results=False, **kwargs):
         """Retrieve and return objects from the Ansible Tower API.
@@ -444,13 +455,7 @@ class ReadableResource(BaseResource):
         queries = kwargs.pop('query', [])
 
         # Remove default values (anything where the value is None).
-        # click is unfortunately bad at the way it sends through unspecified
-        # defaults.
-        for key, value in copy(kwargs).items():
-            if value is None:
-                kwargs.pop(key)
-            if hasattr(value, 'read'):
-                kwargs[key] = value.read()
+        self._pop_none(kwargs)
 
         # If queries were provided, process them.
         for query in queries:
@@ -619,13 +624,7 @@ class WritableResource(ReadableResource):
         existing_data = {}
 
         # Remove default values (anything where the value is None).
-        # click is unfortunately bad at the way it sends through unspecified
-        # defaults.
-        for key, value in copy(kwargs).items():
-            if value is None:
-                kwargs.pop(key)
-            if hasattr(value, 'read'):
-                kwargs[key] = value.read()
+        super(WritableResource, self)._pop_none(kwargs)
 
         # Determine which record we are writing, if we weren't given a
         # primary key.
@@ -923,3 +922,52 @@ class MonitorableResource(BaseResource):
 
         # Done; return the result
         return result
+
+
+class ExeResource(MonitorableResource):
+    """Executable resource - defines status and cancel methods"""
+    abstract = True
+
+    @resources.command
+    @click.option('--detail', is_flag=True, default=False,
+                  help='Print more detail.')
+    def status(self, pk, detail=False, **kwargs):
+        """Print the current job status."""
+        # Get the job from Ansible Tower.
+        debug.log('Asking for ad-hoc job status.', header='details')
+        finished_endpoint = self.endpoint + str(pk) + "/"
+        job = client.get(finished_endpoint).json()
+
+        # In most cases, we probably only want to know the status of the job
+        # and the amount of time elapsed. However, if we were asked for
+        # verbose information, provide it.
+        if detail:
+            return job
+
+        # Print just the information we need.
+        return adict({
+            'elapsed': job['elapsed'],
+            'failed': job['failed'],
+            'status': job['status'],
+        })
+
+    @resources.command
+    @click.option('--fail-if-not-running', is_flag=True, default=False,
+                  help='Fail loudly if the job is not currently running.')
+    def cancel(self, pk, fail_if_not_running=False, **kwargs):
+        """Cancel a currently running job.
+
+        Fails with a non-zero exit status if the job cannot be canceled.
+        """
+        cancel_endpoint = self.endpoint + str(pk) + "/cancel/"
+        # Attempt to cancel the job.
+        try:
+            client.post(cancel_endpoint)
+            changed = True
+        except exc.MethodNotAllowed:
+            changed = False
+            if fail_if_not_running:
+                raise exc.TowerCLIError('Job not running.')
+
+        # Return a success.
+        return adict({'status': 'canceled', 'changed': changed})

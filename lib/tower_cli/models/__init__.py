@@ -18,6 +18,7 @@
 from __future__ import absolute_import, unicode_literals
 
 from tower_cli.models.base import BaseResource, ReadableResource, \
-                                  WritableResource, MonitorableResource
+                                  WritableResource, MonitorableResource, \
+                                  ExeResource
 from tower_cli.models.fields import Field
 from tower_cli.utils.types import File
