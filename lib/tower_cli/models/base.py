@@ -493,6 +493,63 @@ class ReadableResource(BaseResource):
         # Return the response.
         return resp
 
+    # Convenience wrappers around `read` and `write`:
+    #   - read:  get, list
+    #   - write: create, modify
+
+    @resources.command(ignore_defaults=True)
+    def get(self, pk=None, **kwargs):
+        """Return one and exactly one object.
+
+        Lookups may be through a primary key, specified as a positional
+        argument, and/or through filters specified through keyword arguments.
+
+        If the number of results does not equal one, raise an exception.
+        """
+        if kwargs.pop('include_debug_header', True):
+            debug.log('Getting the record.', header='details')
+        response = self.read(pk=pk, fail_on_no_results=True,
+                             fail_on_multiple_results=True, **kwargs)
+        return response['results'][0]
+
+    def _lookup(self, fail_on_missing=False, fail_on_found=False,
+                include_debug_header=True, **kwargs):
+        """Attempt to perform a lookup that is expected to return a single
+        result, and return the record.
+
+        This method is a wrapper around `get` that strips out non-unique
+        keys, and is used internally by `write` and `delete`.
+        """
+        # Determine which parameters we are using to determine
+        # the appropriate field.
+        read_params = {}
+        for field_name in self.identity:
+            if field_name in kwargs:
+                read_params[field_name] = kwargs[field_name]
+
+        # Sanity check: Do we have any parameters?
+        # If not, then there's no way for us to do this read.
+        if not read_params:
+            raise exc.BadRequest('Cannot reliably determine which record '
+                                 'to write. Include an ID or unique '
+                                 'fields.')
+
+        # Get the record to write.
+        try:
+            existing_data = self.get(include_debug_header=include_debug_header,
+                                     **read_params)
+            if fail_on_found:
+                raise exc.Found('A record matching %s already exists, and '
+                                'you requested a failure in that case.' %
+                                read_params)
+            return existing_data
+        except exc.NotFound:
+            if fail_on_missing:
+                raise exc.NotFound('A record matching %s does not exist, and '
+                                   'you requested a failure in that case.' %
+                                   read_params)
+            return {}
+
     @resources.command
     def delete(self, pk=None, fail_on_missing=False, **kwargs):
         """Remove the given object.
@@ -522,25 +579,6 @@ class ReadableResource(BaseResource):
             if fail_on_missing:
                 raise
             return {'changed': False}
-
-    # Convenience wrappers around `read` and `write`:
-    #   - read:  get, list
-    #   - write: create, modify
-
-    @resources.command(ignore_defaults=True)
-    def get(self, pk=None, **kwargs):
-        """Return one and exactly one object.
-
-        Lookups may be through a primary key, specified as a positional
-        argument, and/or through filters specified through keyword arguments.
-
-        If the number of results does not equal one, raise an exception.
-        """
-        if kwargs.pop('include_debug_header', True):
-            debug.log('Getting the record.', header='details')
-        response = self.read(pk=pk, fail_on_no_results=True,
-                             fail_on_multiple_results=True, **kwargs)
-        return response['results'][0]
 
     @resources.command(ignore_defaults=True, no_args_is_help=False)
     @click.option('all_pages', '-a', '--all-pages',
@@ -624,7 +662,7 @@ class WritableResource(ReadableResource):
         existing_data = {}
 
         # Remove default values (anything where the value is None).
-        super(WritableResource, self)._pop_none(kwargs)
+        self._pop_none(kwargs)
 
         # Determine which record we are writing, if we weren't given a
         # primary key.
@@ -773,46 +811,8 @@ class WritableResource(ReadableResource):
         r = client.post(url, data={'disassociate': True, 'id': other})
         return {'changed': True}
 
-    def _lookup(self, fail_on_missing=False, fail_on_found=False,
-                include_debug_header=True, **kwargs):
-        """Attempt to perform a lookup that is expected to return a single
-        result, and return the record.
 
-        This method is a wrapper around `get` that strips out non-unique
-        keys, and is used internally by `write` and `delete`.
-        """
-        # Determine which parameters we are using to determine
-        # the appropriate field.
-        read_params = {}
-        for field_name in self.identity:
-            if field_name in kwargs:
-                read_params[field_name] = kwargs[field_name]
-
-        # Sanity check: Do we have any parameters?
-        # If not, then there's no way for us to do this read.
-        if not read_params:
-            raise exc.BadRequest('Cannot reliably determine which record '
-                                 'to write. Include an ID or unique '
-                                 'fields.')
-
-        # Get the record to write.
-        try:
-            existing_data = self.get(include_debug_header=include_debug_header,
-                                     **read_params)
-            if fail_on_found:
-                raise exc.Found('A record matching %s already exists, and '
-                                'you requested a failure in that case.' %
-                                read_params)
-            return existing_data
-        except exc.NotFound:
-            if fail_on_missing:
-                raise exc.NotFound('A record matching %s does not exist, and '
-                                   'you requested a failure in that case.' %
-                                   read_params)
-            return {}
-
-
-class MonitorableResource(BaseResource):
+class MonitorableResource(ReadableResource):
     """A resource that is able to be tied to a running task, such as a job
     or project, and thus able to be monitored.
     """
@@ -931,12 +931,21 @@ class ExeResource(MonitorableResource):
     @resources.command
     @click.option('--detail', is_flag=True, default=False,
                   help='Print more detail.')
-    def status(self, pk, detail=False, **kwargs):
-        """Print the current job status."""
-        # Get the job from Ansible Tower.
-        debug.log('Asking for ad-hoc job status.', header='details')
-        finished_endpoint = self.endpoint + str(pk) + "/"
-        job = client.get(finished_endpoint).json()
+    def status(self, pk=None, detail=False, **kwargs):
+        """Print the current job status. This is used to check a running job.
+        You can look up the job with the same parameters used for a get
+        request."""
+        # Remove default values (anything where the value is None).
+        self._pop_none(kwargs)
+
+        # Search for the record if pk not given
+        if not pk:
+            job = self.get(include_debug_header=True, **kwargs)
+        # Get the job from Ansible Tower if pk given
+        else:
+            debug.log('Asking for job status.', header='details')
+            finished_endpoint = '%s%d/' % (self.endpoint, pk)
+            job = client.get(finished_endpoint).json()
 
         # In most cases, we probably only want to know the status of the job
         # and the amount of time elapsed. However, if we were asked for
@@ -954,12 +963,18 @@ class ExeResource(MonitorableResource):
     @resources.command
     @click.option('--fail-if-not-running', is_flag=True, default=False,
                   help='Fail loudly if the job is not currently running.')
-    def cancel(self, pk, fail_if_not_running=False, **kwargs):
+    def cancel(self, pk=None, fail_if_not_running=False, **kwargs):
         """Cancel a currently running job.
 
         Fails with a non-zero exit status if the job cannot be canceled.
+        You must provide either a pk or parameters in the job's identity.
         """
-        cancel_endpoint = self.endpoint + str(pk) + "/cancel/"
+        # Search for the record within its identity if pk not given
+        if not pk:
+            existing_data = self._lookup(fail_on_missing=True, **kwargs)
+            pk = existing_data['id']
+
+        cancel_endpoint = '%s%d/cancel/' % (self.endpoint, pk)
         # Attempt to cancel the job.
         try:
             client.post(cancel_endpoint)

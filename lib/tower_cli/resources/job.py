@@ -26,7 +26,7 @@ from tower_cli.utils import debug, types
 from tower_cli.utils import parser
 
 
-class Resource(models.ReadableResource, models.ExeResource):
+class Resource(models.ExeResource):
     """A resource for jobs.
 
     This resource has ordinary list and get methods,
@@ -36,6 +36,7 @@ class Resource(models.ReadableResource, models.ExeResource):
     cli_help = 'Launch or monitor jobs.'
     endpoint = '/jobs/'
 
+    name = models.Field(unique=True)
     job_template = models.Field(
         type=types.Related('job_template'), required=True, display=True
     )
@@ -47,8 +48,6 @@ class Resource(models.ReadableResource, models.ExeResource):
     @resources.command(
         use_fields_as_options=('job_template', 'job_explanation')
     )
-    # @click.option('--job-template', type=types.Related('job_template'),
-    #               help='Job template to base run off of.')
     @click.option('--monitor', is_flag=True, default=False,
                   help='If sent, immediately calls `job monitor` on the newly '
                        'launched job rather than exiting with a success.')
@@ -62,8 +61,8 @@ class Resource(models.ReadableResource, models.ExeResource):
                   help='yaml format text that contains extra variables '
                        'to pass on. Use @ to get these from a file.')
     @click.option('--tags', required=False)
-    def launch(self, job_template, tags=None, monitor=False, timeout=None,
-               no_input=True, extra_vars=None):
+    def launch(self, job_template=None, tags=None, monitor=False, timeout=None,
+               no_input=True, extra_vars=None, **kwargs):
         """Launch a new job based on a job template.
 
         Creates a new job in Ansible Tower, immediately starts it, and
@@ -150,7 +149,9 @@ class Resource(models.ReadableResource, models.ExeResource):
 
         # Actually start the job.
         debug.log('Launching the job.', header='details')
-        result = client.post(endpoint, start_data)
+        self._pop_none(kwargs)
+        kwargs.update(start_data)
+        result = client.post(endpoint, kwargs)  # start_data)
 
         # If this used the /job_template/N/launch/ route, get the job
         # ID from the result.

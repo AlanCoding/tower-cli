@@ -22,12 +22,13 @@ from tower_cli.api import client
 from tower_cli.utils import debug, exceptions as exc, types
 
 
-class Resource(models.ReadableResource, models.ExeResource):
+class Resource(models.ExeResource):
     """A resource for ad hoc commands."""
     cli_help = 'Launch commands based on playbook given at runtime.'
     endpoint = '/ad_hoc_commands/'
 
     # Parameters similar to job
+    name = models.Field(unique=True)
     job_explanation = models.Field(required=False, display=False)
     created = models.Field(required=False, display=True)
     status = models.Field(required=False, display=True)
@@ -93,7 +94,7 @@ class Resource(models.ReadableResource, models.ExeResource):
 
         # Pop the None arguments because we have no .write() method in
         # inheritance chain for this type of resource. This is needed
-        super(Resource, self)._pop_none(kwargs)
+        self._pop_none(kwargs)
 
         # Actually start the job.
         debug.log('Launching the ad-hoc command.', header='details')

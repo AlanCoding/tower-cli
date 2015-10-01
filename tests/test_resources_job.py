@@ -276,6 +276,26 @@ class StatusTests(unittest.TestCase):
             })
             self.assertEqual(len(t.requests), 1)
 
+    def test_normal_with_lookup(self):
+        """Establish that the data about job specified by query is
+        returned correctly.
+        """
+        with client.test_mode as t:
+            t.register_json('/jobs/?name=bar', {"count": 1, "results": [
+                {"id": 42, "name": "bar",
+                    'elapsed': 1335024000.0,
+                    'extra': 'ignored',
+                    'failed': False,
+                    'status': 'successful', },
+            ], "next": None, "previous": None}, method='GET')
+            result = self.res.status(name="bar")
+            self.assertEqual(result, {
+                'elapsed': 1335024000.0,
+                'failed': False,
+                'status': 'successful',
+            })
+            self.assertEqual(len(t.requests), 1)
+
     def test_detailed(self):
         with client.test_mode as t:
             t.register_json('/jobs/42/', {
@@ -447,6 +467,19 @@ class CancelTests(unittest.TestCase):
             t.register('/jobs/42/cancel/', '', method='POST')
             result = self.res.cancel(42)
             self.assertTrue(t.requests[0].url.endswith('/jobs/42/cancel/'))
+            self.assertTrue(result['changed'])
+
+    def test_cancelation_by_lookup(self):
+        """Establish that a job can be canceled by name or identity
+        """
+        with client.test_mode as t:
+            t.register_json('/jobs/?name=bar', {"count": 1, "results": [
+                {"id": 42, "name": "bar"},
+            ], "next": None, "previous": None}, method='GET')
+            t.register('/jobs/42/cancel/', '', method='POST')
+            result = self.res.cancel(name="bar")
+            self.assertTrue(t.requests[0].url.endswith('/jobs/?name=bar'))
+            self.assertTrue(t.requests[1].url.endswith('/jobs/42/cancel/'))
             self.assertTrue(result['changed'])
 
     def test_cancelation_completed(self):
