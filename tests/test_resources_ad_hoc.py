@@ -18,6 +18,9 @@ from tower_cli.api import client
 from tower_cli.utils import exceptions as exc
 
 from tests.compat import unittest, mock
+from tower_cli.conf import settings
+
+import click
 
 
 class LaunchTests(unittest.TestCase):
@@ -28,7 +31,7 @@ class LaunchTests(unittest.TestCase):
         self.res = tower_cli.get_resource('ad_hoc')
 
     def test_basic_launch(self):
-        """Establish that we are able to create a ad hoc job.
+        """Establish that we are able to run an ad hoc command.
         """
         with client.test_mode as t:
             t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
@@ -36,12 +39,50 @@ class LaunchTests(unittest.TestCase):
                 'ad_hoc_commands': '/api/v1/ad_hoc_commands/'
                 }, method='GET')
             t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
-            result = self.res.launch(inventory=1, machine_credential=2,
+            result = self.res.launch(inventory="foobar", machine_credential=2)
+            self.assertEqual(result, {'changed': True, 'id': 42})
+
+    def test_basic_launch_with_echo(self):
+        """Establish that we are able to run an ad hoc command and also
+        print that to the command line without errors.
+        """
+        with client.test_mode as t:
+            t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
+            t.register_json('/', {
+                'ad_hoc_commands': '/api/v1/ad_hoc_commands/'
+                }, method='GET')
+            t.register_json(
+                '/ad_hoc_commands/',
+                {'changed': True, 'id': 42,
+                    'inventory': 'foobar', 'credential': 2,
+                    'name': 'ping', 'created': 1234, 'elapsed': 2352,
+                    'status': 'successful', 'module_name': 'command',
+                    'limit': '', }, method='POST'
+            )
+            result = self.res.launch(inventory="foobar", machine_credential=2)
+            self.assertEqual(result['changed'], True)
+            self.assertEqual(result['id'], 42)
+
+            f = self.res.as_command()._echo_method(self.res.launch)
+            with mock.patch.object(click, 'secho'):
+                with settings.runtime_values(format='human'):
+                    f(inventory="foobar", machine_credential=2)
+
+    def test_launch_with_param(self):
+        """Establish that we are able to run an ad hoc command.
+        """
+        with client.test_mode as t:
+            t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
+            t.register_json('/', {
+                'ad_hoc_commands': '/api/v1/ad_hoc_commands/'
+                }, method='GET')
+            t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
+            result = self.res.launch(inventory="foobar", machine_credential=2,
                                      module_args="echo 'hi'")
             self.assertEqual(result, {'changed': True, 'id': 42})
 
     def test_version_failure(self):
-        """Establish that if the job has failed, that we raise the
+        """Establish that if the command has failed, that we raise the
         JobFailure exception.
         """
         with client.test_mode as t:
@@ -53,8 +94,8 @@ class LaunchTests(unittest.TestCase):
                                 module_args="echo 'hi'")
 
     def test_basic_launch_monitor_option(self):
-        """Establish that we are able to create a job that doesn't require
-        any invocation-time input, and that monitor is called if requested.
+        """Establish that we are able to run a command and monitor
+        it, if requested.
         """
         with client.test_mode as t:
             t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
@@ -77,8 +118,8 @@ class StatusTests(unittest.TestCase):
         self.res = tower_cli.get_resource('ad_hoc')
 
     def test_normal(self):
-        """Establish that the data about a ad hoc job retrieved from the jobs
-        endpoint is provided.
+        """Establish that the data about an ad hoc command retrieved
+        from the jobs endpoint is provided.
         """
         with client.test_mode as t:
             t.register_json('/ad_hoc_commands/42/', {
@@ -114,7 +155,7 @@ class StatusTests(unittest.TestCase):
 
 
 class CancelTests(unittest.TestCase):
-    """A set of tasks to establish that the ad hoc job cancel
+    """A set of tasks to establish that the ad hoc cancel
     command works in the way that we expect.
     """
     def setUp(self):

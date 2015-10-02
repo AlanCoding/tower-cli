@@ -25,6 +25,7 @@ from tower_cli.api import client
 from tower_cli.utils import exceptions as exc
 
 from tests.compat import unittest, mock
+from tower_cli.conf import settings
 
 
 class LaunchTests(unittest.TestCase):
@@ -48,7 +49,32 @@ class LaunchTests(unittest.TestCase):
             t.register_json('/job_templates/1/launch/', {'job': 42},
                             method='POST')
             result = self.res.launch(1)
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
+
+    def test_basic_launch_with_echo(self):
+        """Establish that we are able to create a job and echo the output
+        to the command line without it breaking.
+        """
+        with client.test_mode as t:
+            t.register_json('/job_templates/1/', {
+                'id': 1,
+                'name': 'frobnicate',
+                'related': {'launch': '/job_templates/1/launch/'},
+            })
+            t.register_json('/job_templates/1/launch/', {}, method='GET')
+            t.register_json('/job_templates/1/launch/',
+                            {'changed': True,
+                                'job': 42, 'job_template': 1, 'created': 1234,
+                                'status': 'failed', 'elapsed': 4321,
+                                'name': 'hello_world'},
+                            method='POST')
+            result = self.res.launch(1)
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
+
+            f = self.res.as_command()._echo_method(self.res.launch)
+            with mock.patch.object(click, 'secho'):
+                with settings.runtime_values(format='human'):
+                    f(job_template=1)
 
     def test_launch_w_tags(self):
         """Establish that we are able to create a job and attach tags to it.
@@ -110,7 +136,7 @@ class LaunchTests(unittest.TestCase):
                 json.loads(t.requests[3].body)['extra_vars'],
                 'foo: bar',
             )
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
     def test_job_template_variables(self):
         """Establish that job template extra_vars are combined with local
@@ -133,7 +159,7 @@ class LaunchTests(unittest.TestCase):
             ev_json = yaml.load(response_json['extra_vars'])
             self.assertTrue('foo' in ev_json)
             self.assertTrue('spam' in ev_json)
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
         # check that in recent versions, it does not include job template
         # variables along with the rest
@@ -154,7 +180,7 @@ class LaunchTests(unittest.TestCase):
             ev_json = yaml.load(response_json['extra_vars'])
             self.assertTrue('foo' in ev_json)
             self.assertTrue('spam' not in ev_json)
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
     def test_extra_vars_at_runtime_tower_20(self):
         """Establish that if we should be asking for extra variables at
@@ -183,7 +209,7 @@ class LaunchTests(unittest.TestCase):
                 json.loads(t.requests[2].body)['extra_vars'],
                 'foo: bar',
             )
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
     def test_extra_vars_at_call_time(self):
         """Establish that extra variables specified at call time are
@@ -204,7 +230,7 @@ class LaunchTests(unittest.TestCase):
                 json.loads(t.requests[2].body)['extra_vars'],
                 'foo: bar',
             )
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
     def test_extra_vars_file_at_call_time(self):
         """Establish that extra variables specified at call time as a file are
@@ -225,7 +251,7 @@ class LaunchTests(unittest.TestCase):
                 json.loads(t.requests[2].body)['extra_vars'],
                 'foo: bar',
             )
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
     def test_passwords_needed_at_start(self):
         """Establish that we are able to create a job that doesn't require
@@ -247,7 +273,7 @@ class LaunchTests(unittest.TestCase):
                 getpass.return_value = 'bar'
                 result = self.res.launch(1)
                 getpass.assert_called_once_with('Password for foo: ')
-            self.assertEqual(result, {'changed': True, 'id': 42})
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
 
 class StatusTests(unittest.TestCase):

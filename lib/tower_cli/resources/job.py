@@ -24,6 +24,7 @@ from tower_cli import models, get_resource, resources
 from tower_cli.api import client
 from tower_cli.utils import debug, types
 from tower_cli.utils import parser
+from tower_cli.utils.data_structures import OrderedDict
 
 
 class Resource(models.ExeResource):
@@ -36,7 +37,6 @@ class Resource(models.ExeResource):
     cli_help = 'Launch or monitor jobs.'
     endpoint = '/jobs/'
 
-    name = models.Field(unique=True)
     job_template = models.Field(
         type=types.Related('job_template'), required=True, display=True
     )
@@ -151,7 +151,7 @@ class Resource(models.ExeResource):
         debug.log('Launching the job.', header='details')
         self._pop_none(kwargs)
         kwargs.update(start_data)
-        result = client.post(endpoint, kwargs)  # start_data)
+        result = client.post(endpoint, data=kwargs)
 
         # If this used the /job_template/N/launch/ route, get the job
         # ID from the result.
@@ -163,8 +163,10 @@ class Resource(models.ExeResource):
         if monitor:
             return self.monitor(job_id, timeout=timeout)
 
-        # Return the job ID.
-        return {
-            'changed': True,
-            'id': job_id,
-        }
+        # Return the job ID and other response data
+        answer = OrderedDict((
+            ('changed', True),
+            ('id', job_id),
+        ))
+        answer.update(result.json())
+        return answer

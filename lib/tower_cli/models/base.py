@@ -920,8 +920,13 @@ class MonitorableResource(ReadableResource):
                 secho('\r' + ' ' * longest_string, file=outfile, nl=False)
                 secho('\r', file=outfile, nl=False)
 
-        # Done; return the result
-        return result
+        # Return the job ID and other response data
+        answer = OrderedDict((
+            ('changed', True),
+            ('id', pk),
+        ))
+        answer.update(result)
+        return answer
 
 
 class ExeResource(MonitorableResource):

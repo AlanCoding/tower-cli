@@ -20,6 +20,7 @@ import click
 from tower_cli import models, resources
 from tower_cli.api import client
 from tower_cli.utils import debug, exceptions as exc, types
+from tower_cli.utils.data_structures import OrderedDict
 
 
 class Resource(models.ExeResource):
@@ -28,7 +29,6 @@ class Resource(models.ExeResource):
     endpoint = '/ad_hoc_commands/'
 
     # Parameters similar to job
-    name = models.Field(unique=True)
     job_explanation = models.Field(required=False, display=False)
     created = models.Field(required=False, display=True)
     status = models.Field(required=False, display=True)
@@ -53,7 +53,7 @@ class Resource(models.ExeResource):
                                default="command", show_default=True)
     module_args = models.Field(required=False, display=False)
     forks = models.Field(type=int, required=False, display=False)
-    limit = models.Field(required=False, display=True)
+    limit = models.Field(required=False, display=False)
     verbosity = models.Field(
         display=False,
         type=types.MappedChoice([
@@ -107,8 +107,10 @@ class Resource(models.ExeResource):
         if monitor:
             return self.monitor(job_id, timeout=timeout)
 
-        # Return the job ID.
-        return {
-            'changed': True,
-            'id': job_id,
-        }
+        # Return the job ID and other response data
+        answer = OrderedDict((
+            ('changed', True),
+            ('id', job_id),
+        ))
+        answer.update(result.json())
+        return answer
