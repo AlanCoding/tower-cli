@@ -75,7 +75,7 @@ class Resource(models.WritableResource):
         return super(Resource, self).create(*args, **kwargs)
 
     @resources.command
-    def modify(self, *args, **kwargs):
+    def modify(self, pk=None, *args, **kwargs):
         """Modify a job template.
         You may only include one --extra-vars flag with this command, and
         whatever you provde will overwrite the existing field. Start this
@@ -84,4 +84,4 @@ class Resource(models.WritableResource):
             # read from file, if given
             kwargs['extra_vars'] = \
                 parser.file_or_yaml_split(kwargs['extra_vars'])
-        return super(Resource, self).modify(*args, **kwargs)
+        return super(Resource, self).modify(pk=pk, *args, **kwargs)

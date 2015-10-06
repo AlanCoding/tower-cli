@@ -321,6 +321,7 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
 
                 # Sanity check: If there is a "changed" key in our payload
                 # and little else, we print a short message and not a table.
+                # this specifically applies to deletion
                 if 'changed' in payload and 'id' not in payload:
                     return 'OK. (changed: {0})'.format(
                         six.text_type(payload['changed']).lower(),
@@ -329,6 +330,8 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
                 # Sanity check: If there is no ID and no results, then this
                 # is unusual output; keep our table formatting, but plow
                 # over the columns-as-keys stuff above.
+                # this originally applied to launch/status/update methods
+                # but it may become deprecated
                 if 'id' not in payload and 'results' not in payload:
                     columns = [i for i in payload.keys()]
 
@@ -834,7 +837,7 @@ class MonitorableResource(ReadableResource):
                   help='If provided, this command (not the job) will time out '
                        'after the given number of seconds.')
     def monitor(self, pk, min_interval=1, max_interval=30,
-                timeout=None, outfile=sys.stdout):
+                timeout=None, outfile=sys.stdout, **kwargs):
         """Monitor a running job.
 
         Blocks further input until the job completes (whether successfully or
@@ -853,7 +856,7 @@ class MonitorableResource(ReadableResource):
         # and run in Python.  This seems fine; outfile can be set to /dev/null
         # and very much the normal use for this method should be CLI
         # monitoring.
-        result = self.status(pk)
+        result = self.status(pk, detail=True)
         last_poll = time.time()
         timeout_check = 0
         while result['status'] != 'successful':
@@ -905,7 +908,7 @@ class MonitorableResource(ReadableResource):
             # to the next time that we intend to do a check, and once that
             # time hits, we do the status check as part of the normal cycle.
             if time.time() - last_poll > interval:
-                result = self.status(pk)
+                result = self.status(pk, detail=True)
                 last_poll = time.time()
                 interval = min(interval * 1.5, max_interval)
 
@@ -926,6 +929,9 @@ class MonitorableResource(ReadableResource):
             ('id', pk),
         ))
         answer.update(result)
+        # Make sure to return ID of resource and not update number
+        # relevant for project creation and update
+        answer['id'] = pk
         return answer
 
 
@@ -974,9 +980,9 @@ class ExeResource(MonitorableResource):
         Fails with a non-zero exit status if the job cannot be canceled.
         You must provide either a pk or parameters in the job's identity.
         """
-        # Search for the record within its identity if pk not given
+        # Search for the record if pk not given
         if not pk:
-            existing_data = self._lookup(fail_on_missing=True, **kwargs)
+            existing_data = self.get(**kwargs)
             pk = existing_data['id']
 
         cancel_endpoint = '%s%d/cancel/' % (self.endpoint, pk)

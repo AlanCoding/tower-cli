@@ -24,7 +24,6 @@ from tower_cli import models, get_resource, resources
 from tower_cli.api import client
 from tower_cli.utils import debug, types
 from tower_cli.utils import parser
-from tower_cli.utils.data_structures import OrderedDict
 
 
 class Resource(models.ExeResource):
@@ -38,7 +37,7 @@ class Resource(models.ExeResource):
     endpoint = '/jobs/'
 
     job_template = models.Field(
-        type=types.Related('job_template'), required=True, display=True
+        type=types.Related('job_template'), required=False, display=True
     )
     job_explanation = models.Field(required=False, display=False)
     created = models.Field(required=False, display=True)
@@ -84,7 +83,7 @@ class Resource(models.ExeResource):
         # Initialize an extra_vars list that starts with the job template
         # preferences first, if they exist
         extra_vars_list = []
-        if 'extra_vars' in data:
+        if 'extra_vars' in data and len(data['extra_vars']) > 0:
             # But only do this for versions before 2.3
             r = client.get('/config/')
             if LooseVersion(r.json()['version']) < LooseVersion('2.4'):
@@ -125,7 +124,7 @@ class Resource(models.ExeResource):
         start_data = {}
         if supports_job_template_launch:
             endpoint = '/job_templates/%d/launch/' % jt['id']
-            if 'extra_vars' in data:
+            if 'extra_vars' in data and len(data['extra_vars']) > 0:
                 start_data['extra_vars'] = data['extra_vars']
             if tags:
                 start_data['job_tags'] = data['job_tags']
@@ -140,7 +139,6 @@ class Resource(models.ExeResource):
         # rely on passwords entered at run-time.
         #
         # If there are any such passwords on this job, ask for them now.
-
         debug.log('Asking for information necessary to start the job.',
                   header='details')
         job_start_info = client.get(endpoint).json()
@@ -151,22 +149,20 @@ class Resource(models.ExeResource):
         debug.log('Launching the job.', header='details')
         self._pop_none(kwargs)
         kwargs.update(start_data)
-        result = client.post(endpoint, data=kwargs)
+        job_started = client.post(endpoint, data=kwargs)
 
         # If this used the /job_template/N/launch/ route, get the job
         # ID from the result.
         if supports_job_template_launch:
-            job_id = result.json()['job']
+            job_id = job_started.json()['job']
+
+        # Get some information about the running job to print
+        result = self.status(pk=job_id, detail=True)
+        result['changed'] = True
 
         # If we were told to monitor the job once it started, then call
         # monitor from here.
         if monitor:
             return self.monitor(job_id, timeout=timeout)
 
-        # Return the job ID and other response data
-        answer = OrderedDict((
-            ('changed', True),
-            ('id', job_id),
-        ))
-        answer.update(result.json())
-        return answer
+        return result

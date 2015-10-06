@@ -28,6 +28,39 @@ from tests.compat import unittest, mock
 from tower_cli.conf import settings
 
 
+# Standard functions used for space and readability
+# these operate on the test client, t
+def register_get(t):
+    """ After starting job, the launch method may grab info about
+    the job just launched from this endpoint """
+    t.register_json('/jobs/42/',
+                    {
+                        'id': 42, 'job_template': 1, 'status': 'pending',
+                        'created': 1234, 'elapsed': 0.0,
+                    }, method='GET')
+
+
+def standard_registration(t):
+    """ Endpoints common to launching any job with template #1 and
+    is automatically assigned to job #42 """
+
+    # A GET to the template endpoint is made to find the extra_vars to combine
+    t.register_json('/job_templates/1/', {
+        'id': 1,
+        'name': 'frobnicate',
+        'related': {'launch': '/job_templates/1/launch/'},
+    })
+    register_get(t)
+
+    # A GET to the launch endpoint is needed to check if
+    # a password prompt is needed
+    t.register_json('/job_templates/1/launch/', {}, method='GET')
+
+    # A POST to the launch endpoint will launch a job, and we
+    # expect that the tower server will return the job number
+    t.register_json('/job_templates/1/launch/', {'job': 42}, method='POST')
+
+
 class LaunchTests(unittest.TestCase):
     """A set of tests for ensuring that the job resource's launch command
     works in the way we expect.
@@ -40,14 +73,7 @@ class LaunchTests(unittest.TestCase):
         any invocation-time input.
         """
         with client.test_mode as t:
-            t.register_json('/job_templates/1/', {
-                'id': 1,
-                'name': 'frobnicate',
-                'related': {'launch': '/job_templates/1/launch/'},
-            })
-            t.register_json('/job_templates/1/launch/', {}, method='GET')
-            t.register_json('/job_templates/1/launch/', {'job': 42},
-                            method='POST')
+            standard_registration(t)
             result = self.res.launch(1)
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
@@ -56,18 +82,7 @@ class LaunchTests(unittest.TestCase):
         to the command line without it breaking.
         """
         with client.test_mode as t:
-            t.register_json('/job_templates/1/', {
-                'id': 1,
-                'name': 'frobnicate',
-                'related': {'launch': '/job_templates/1/launch/'},
-            })
-            t.register_json('/job_templates/1/launch/', {}, method='GET')
-            t.register_json('/job_templates/1/launch/',
-                            {'changed': True,
-                                'job': 42, 'job_template': 1, 'created': 1234,
-                                'status': 'failed', 'elapsed': 4321,
-                                'name': 'hello_world'},
-                            method='POST')
+            standard_registration(t)
             result = self.res.launch(1)
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
@@ -80,14 +95,7 @@ class LaunchTests(unittest.TestCase):
         """Establish that we are able to create a job and attach tags to it.
         """
         with client.test_mode as t:
-            t.register_json('/job_templates/1/', {
-                'id': 1,
-                'name': 'frobnicate',
-                'related': {'launch': '/job_templates/1/launch/'},
-            })
-            t.register_json('/job_templates/1/launch/', {}, method='GET')
-            t.register_json('/job_templates/1/launch/', {'job': 42},
-                            method='POST')
+            standard_registration(t)
             self.res.launch(1, tags="a, b, c")
             self.assertEqual(
                 json.loads(t.requests[2].body)['job_tags'], 'a, b, c',
@@ -98,14 +106,7 @@ class LaunchTests(unittest.TestCase):
         any invocation-time input, and that monitor is called if requested.
         """
         with client.test_mode as t:
-            t.register_json('/job_templates/1/', {
-                'id': 1,
-                'name': 'frobnicate',
-                'related': {'launch': '/job_templates/1/launch/'},
-            })
-            t.register_json('/job_templates/1/launch/', {}, method='GET')
-            t.register_json('/job_templates/1/launch/', {'job': 42},
-                            method='POST')
+            standard_registration(t)
             with mock.patch.object(type(self.res), 'monitor') as monitor:
                 self.res.launch(1, monitor=True)
                 monitor.assert_called_once_with(42, timeout=None)
@@ -122,6 +123,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {'launch': '/job_templates/1/launch/'},
             })
+            register_get(t)
             t.register_json('/config/', {'version': '2.2.0'}, method='GET')
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
@@ -150,6 +152,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {'launch': '/job_templates/1/launch/'},
             })
+            register_get(t)
             t.register_json('/config/', {'version': '2.2.0'}, method='GET')
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
@@ -171,6 +174,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {'launch': '/job_templates/1/launch/'},
             })
+            register_get(t)
             t.register_json('/config/', {'version': '2.4'}, method='GET')
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
@@ -195,6 +199,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {},
             })
+            register_get(t)
             t.register_json('/config/', {'version': '2.0'}, method='GET')
             t.register_json('/jobs/', {'id': 42}, method='POST')
             t.register_json('/jobs/42/start/', {}, method='GET')
@@ -221,6 +226,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {'launch': '/job_templates/1/launch/'},
             })
+            register_get(t)
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
                             method='POST')
@@ -242,6 +248,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {'launch': '/job_templates/1/launch/'},
             })
+            register_get(t)
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
                             method='POST')
@@ -263,6 +270,7 @@ class LaunchTests(unittest.TestCase):
                 'name': 'frobnicate',
                 'related': {'launch': '/job_templates/1/launch/'},
             })
+            register_get(t)
             t.register_json('/job_templates/1/launch/', {
                 'passwords_needed_to_start': ['foo'],
             }, method='GET')

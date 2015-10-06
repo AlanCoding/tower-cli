@@ -22,7 +22,7 @@ from tower_cli.api import client
 from tower_cli.utils import debug, types, exceptions as exc
 
 
-class Resource(models.WritableResource, models.MonitorableResource):
+class Resource(models.MonitorableResource, models.WritableResource):
     cli_help = 'Manage inventory sources within Ansible Tower.'
     endpoint = '/inventory_sources/'
     internal = True

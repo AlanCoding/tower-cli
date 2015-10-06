@@ -63,7 +63,6 @@ class Resource(models.ExeResource):
         ]),
         required=False,
     )
-    become_enabled = models.Field(type=bool, required=False, display=False)
 
     @resources.command(
         use_fields_as_options=(
@@ -79,7 +78,10 @@ class Resource(models.ExeResource):
                   help='If provided with --monitor, this attempt'
                        ' will time out after the given number of seconds. '
                        'Does nothing if --monitor is not sent.')
-    def launch(self, monitor=False, timeout=None, **kwargs):
+    @click.option('--become', required=False, is_flag=True,
+                  help='If used, privledge escalation will be enabled for '
+                       'this command.')
+    def launch(self, monitor=False, timeout=None, become=False, **kwargs):
         """Launch a new ad-hoc command.
 
         Runs a user-defined command from Ansible Tower, immediately starts it,
@@ -95,6 +97,10 @@ class Resource(models.ExeResource):
         # Pop the None arguments because we have no .write() method in
         # inheritance chain for this type of resource. This is needed
         self._pop_none(kwargs)
+
+        # Change the flag to the dictionary format
+        if become:
+            kwargs['become_enabled'] = True
 
         # Actually start the job.
         debug.log('Launching the ad-hoc command.', header='details')

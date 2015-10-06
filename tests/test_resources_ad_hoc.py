@@ -19,6 +19,7 @@ from tower_cli.utils import exceptions as exc
 
 from tests.compat import unittest, mock
 from tower_cli.conf import settings
+import json
 
 import click
 
@@ -41,6 +42,25 @@ class LaunchTests(unittest.TestCase):
             t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
             result = self.res.launch(inventory="foobar", machine_credential=2)
             self.assertEqual(result, {'changed': True, 'id': 42})
+
+    def test_launch_with_become(self):
+        """Establish that we are able use the --become flag
+        """
+        with client.test_mode as t:
+            t.register_json('/ad_hoc_commands/42/', {'id': 42}, method='GET')
+            t.register_json('/', {
+                'ad_hoc_commands': '/api/v1/ad_hoc_commands/'
+                }, method='GET')
+            t.register_json('/ad_hoc_commands/', {'id': 42}, method='POST')
+            self.res.launch(inventory="foobar", machine_credential=2,
+                            become=True)
+            # Critically, we test that the request sent to the server
+            # contains the key "become_enabled", as this must be triggered
+            # by the conditional written specifically for --become
+            self.assertDictContainsSubset(
+                {'become_enabled': True},
+                json.loads(t.requests[1].body)
+            )
 
     def test_basic_launch_with_echo(self):
         """Establish that we are able to run an ad hoc command and also
