@@ -23,7 +23,7 @@ $ tower-cli config password myPassw0rd
 ### Create Fake Data
 
 You may only want to read the
-[fake data creator](docs/examples/fake_data_creator.sh) for
+[fake data creator](/docs/examples/fake_data_creator.sh) for
 examples on how to do things.
 
 If you want to run the script, which will auto-populate your Tower server
