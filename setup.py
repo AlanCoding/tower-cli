@@ -111,7 +111,7 @@ setup(
 
     # Additional information
     description='A CLI tool for Ansible Tower.',
-    long_description=open('README.rst'),
+    long_description=open('README.md'),
     license='Apache 2.0',
 
     # How to do the install
