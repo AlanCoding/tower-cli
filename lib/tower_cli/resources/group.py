@@ -52,17 +52,6 @@ class Resource(models.Resource):
                   'from the external source.')
     @click.option('--update-on-launch', type=bool, help='Refresh inventory '
                   'data from its source each time a job is run.')
-    # Decorators common to the parent class and other create methods
-    #  these are contained in kwargs and passed in that form
-    @click.option('--fail-on-found', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, return an error if a matching record already '
-                       'exists.')
-    @click.option('--force-on-exists', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, if a match is found on unique fields, other '
-                       'fields will be updated to the provided values. If '
-                       'False, a match causes the request to be a no-op.')
     def create(self, credential=None, source=None, **kwargs):
         """Create a group and, if necessary, modify the inventory source within
         the group.
@@ -109,13 +98,6 @@ class Resource(models.Resource):
                   'from the external source.')
     @click.option('--update-on-launch', type=bool, help='Refersh inventory '
                   'data from its source each time a job is run.')
-    # Decorator common to the parent class and other create methods
-    @click.option('--create-on-missing', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, and if options rather than a primary key are '
-                       'used to attempt to match a record, will create the '
-                       'record if it does not exist. This is an alias to '
-                       '`create --force-on-exists`.')
     def modify(self, pk=None, credential=None, source=None, **kwargs):
         """Modify a group and, if necessary, the inventory source within
         the group.
