@@ -97,13 +97,6 @@ class Resource(models.Resource, models.MonitorableResource):
         'scm_branch', 'scm_credential', 'scm_clean', 'scm_delete_on_update',
         'scm_update_on_launch'
     ))
-    # Decorator common to the parent class and other create methods
-    @click.option('--create-on-missing', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, and if options rather than a primary key are '
-                       'used to attempt to match a record, will create the '
-                       'record if it does not exist. This is an alias to '
-                       '`create --force-on-exists`.')
     def modify(self, pk=None, create_on_missing=False, **kwargs):
         """Modify an already existing.
 
