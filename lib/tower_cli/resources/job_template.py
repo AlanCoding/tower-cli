@@ -17,7 +17,7 @@ from __future__ import absolute_import, unicode_literals
 
 import click
 
-from tower_cli import models, resources
+from tower_cli import models
 from tower_cli.utils import types
 from tower_cli.utils import parser
 
@@ -60,20 +60,9 @@ class Resource(models.Resource):
     extra_vars = models.Field(required=False, display=False)
     become_enabled = models.Field(type=bool, required=False, display=False)
 
-    @resources.command
     @click.option('--extra-vars', required=False, multiple=True,
                   help='yaml format text that contains extra variables '
                        'to pass on. Use @ to get these from a file.')
-    # Decorators common to the parent class and other create methods
-    @click.option('--fail-on-found', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, return an error if a matching record already '
-                       'exists.')
-    @click.option('--force-on-exists', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, if a match is found on unique fields, other '
-                       'fields will be updated to the provided values. If '
-                       'False, a match causes the request to be a no-op.')
     def create(self, fail_on_found=False, force_on_exists=False,
                extra_vars=None, **kwargs):
         """Create a job template.
@@ -88,14 +77,6 @@ class Resource(models.Resource):
             **kwargs
         )
 
-    @resources.command
-    # Decorator common to the parent class and other create methods
-    @click.option('--create-on-missing', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, and if options rather than a primary key are '
-                       'used to attempt to match a record, will create the '
-                       'record if it does not exist. This is an alias to '
-                       '`create --force-on-exists`.')
     def modify(self, pk=None, create_on_missing=False, **kwargs):
         """Modify a job template.
         You may only include one --extra-vars flag with this command, and

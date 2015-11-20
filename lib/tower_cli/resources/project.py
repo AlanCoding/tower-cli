@@ -22,7 +22,7 @@ from tower_cli.api import client
 from tower_cli.utils import debug, exceptions as exc, types
 
 
-class Resource(models.MonitorableResource):
+class Resource(models.Resource, models.MonitorableResource):
     cli_help = 'Manage projects within Ansible Tower.'
     endpoint = '/projects/'
 
@@ -61,17 +61,6 @@ class Resource(models.MonitorableResource):
                   help='If provided with --monitor, the SCM update'
                        ' will time out after the given number of seconds. '
                        'Does nothing if --monitor is not sent.')
-    # Decorators common to the parent class and other create methods
-    @click.option('--fail-on-found', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, return an error if a matching record already '
-                       'exists.')
-    @click.option('--force-on-exists', default=False,
-                  show_default=True, type=bool, is_flag=True,
-                  help='If used, if a match is found on unique fields, other '
-                       'fields will be updated to the provided values. If '
-                       'False, a match causes the request to be a no-op.')
-    @resources.command
     def create(self, organization=None, monitor=False, timeout=None,
                fail_on_found=False, force_on_exists=False,
                **kwargs):
@@ -129,9 +118,6 @@ class Resource(models.MonitorableResource):
         # Associated with issue #52, the organization can't be modified
         #    with the 'modify' command. This would create confusion about
         #    whether its flag is an identifier versus a field to modify.
-        # Another role this method serves is to re-implement the modify
-        #    method as a command. If this method is deleted, the inheritance
-        #    chain for project should also be changed.
         return super(Resource, self).modify(
             pk=pk, create_on_missing=create_on_missing, **kwargs
         )
@@ -179,7 +165,7 @@ class Resource(models.MonitorableResource):
     @resources.command
     @click.option('--detail', is_flag=True, default=False,
                   help='Print more detail.')
-    def status(self, pk, detail=False):
+    def status(self, pk=None, detail=False, **kwargs):
         """Print the current job status."""
         # Get the job from Ansible Tower.
         debug.log('Asking for project update status.', header='details')
