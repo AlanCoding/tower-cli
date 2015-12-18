@@ -43,9 +43,10 @@ class Resource(models.ExeResource):
     created = models.Field(required=False, display=True)
     status = models.Field(required=False, display=True)
     elapsed = models.Field(required=False, display=True)
+    extra_vars = models.Field(required=False, display=False, yaml_vars=True)
 
     @resources.command(
-        use_fields_as_options=('job_template', 'job_explanation')
+        use_fields_as_options=('job_template', 'job_explanation', 'extra_vars')
     )
     @click.option('--monitor', is_flag=True, default=False,
                   help='If sent, immediately calls `job monitor` on the newly '
@@ -56,9 +57,6 @@ class Resource(models.ExeResource):
                        'Does nothing if --monitor is not sent.')
     @click.option('--no-input', is_flag=True, default=False,
                   help='Suppress any requests for input.')
-    @click.option('--extra-vars', required=False, multiple=True,
-                  help='yaml format text that contains extra variables '
-                       'to pass on. Use @ to get these from a file.')
     @click.option('--tags', required=False,
                   help='Specify tagged actions in the playbook to run.')
     def launch(self, job_template=None, tags=None, monitor=False, timeout=None,
@@ -93,7 +91,7 @@ class Resource(models.ExeResource):
 
         # Add the runtime extra_vars to this list
         if extra_vars:
-            extra_vars_list += list(extra_vars)  # accept tuples
+            extra_vars_list += [extra_vars]
 
         # If the job template requires prompting for extra variables,
         # do so (unless --no-input is set).

@@ -19,7 +19,6 @@ import click
 
 from tower_cli import models
 from tower_cli.utils import types
-from tower_cli.utils import parser
 
 
 class Resource(models.Resource):
@@ -55,48 +54,8 @@ class Resource(models.Resource):
     )
     job_tags = models.Field(required=False, display=False)
     skip_tags = models.Field(required=False, display=False)
-    extra_vars = models.Field(required=False, display=False)
+    extra_vars = models.Field(required=False, display=False, yaml_vars=True)
     ask_variables_on_launch = models.Field(
         type=bool, required=False, display=False,
         help_text='Prompt user for extra_vars on launch.')
     become_enabled = models.Field(type=bool, required=False, display=False)
-
-    @click.option('--extra-vars', required=False, multiple=True,
-                  help='Extra variables used by Ansible in YAML or key=value '
-                       'format. Use @ to get YAML from a file.')
-    def create(self, fail_on_found=False, force_on_exists=False,
-               extra_vars=None, **kwargs):
-        """Create a job template.
-        You may include multiple --extra-vars flags in order to combine
-        different sources of extra variables. Start this
-        with @ in order to indicate a filename."""
-        if extra_vars:
-            # combine sources of extra variables, if given
-            kwargs['extra_vars'] = parser.process_extra_vars(
-                extra_vars, force_json=False
-            )
-        # Provide a default value for job_type, but only in creation of JT
-        if not kwargs.get('job_type', False):
-            kwargs['job_type'] = 'run'
-        return super(Resource, self).create(
-            fail_on_found=fail_on_found, force_on_exists=force_on_exists,
-            **kwargs
-        )
-
-    @click.option('--extra-vars', required=False, multiple=True,
-                  help='Extra variables used by Ansible in YAML or key=value '
-                       'format. Use @ to get YAML from a file.')
-    def modify(self, pk=None, create_on_missing=False,
-               extra_vars=None, **kwargs):
-        """Modify a job template.
-        You may include multiple --extra-vars flags in order to combine
-        different sources of extra variables. Start this
-        with @ in order to indicate a filename."""
-        if extra_vars:
-            # combine sources of extra variables, if given
-            kwargs['extra_vars'] = parser.process_extra_vars(
-                extra_vars, force_json=False
-            )
-        return super(Resource, self).modify(
-            pk=pk, create_on_missing=create_on_missing, **kwargs
-        )
