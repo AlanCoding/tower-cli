@@ -4,6 +4,7 @@ Release History
 2.4.0 (2015-12-xx)
 ------------------
 - Added inventory script sub-command
+- Added optional short flags for common fields
 
 2.3.1 (2015-12-10)
 ------------------

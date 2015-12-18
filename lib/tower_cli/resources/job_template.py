@@ -43,7 +43,7 @@ class Resource(models.Resource):
     cloud_credential = models.Field(type=types.Related('credential'),
                                     required=False, display=False)
     forks = models.Field(type=int, required=False, display=False)
-    limit = models.Field(required=False, display=False)
+    limit = models.Field(key='-l', required=False, display=False)
     verbosity = models.Field(
         display=False,
         type=types.MappedChoice([
@@ -53,7 +53,7 @@ class Resource(models.Resource):
         ]),
         required=False,
     )
-    job_tags = models.Field(required=False, display=False)
+    job_tags = models.Field(key='-t', required=False, display=False)
     skip_tags = models.Field(required=False, display=False)
     extra_vars = models.Field(required=False, display=False)
     ask_variables_on_launch = models.Field(
