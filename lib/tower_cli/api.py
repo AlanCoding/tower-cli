@@ -28,6 +28,12 @@ from tower_cli.conf import settings
 from tower_cli.utils import data_structures, debug, exceptions as exc
 
 
+verify_ssl_notice = ('You can run this command without verifying SSL '
+    'with the --insecure flag, or permanently disable '
+    'verification by the config setting:\n\n '
+    'tower-cli config verify_ssl false')
+
+
 class Client(Session):
     """A class for making HTTP requests to the Ansible Tower API and
     returning the responses.
@@ -93,6 +99,13 @@ class Client(Session):
         if (settings.verify_ssl is False) or hasattr(settings, 'insecure'):
             verify_ssl = False
 
+        # If user gives http url and says to verify ssl, just stop
+        if url.startswith('http://') and verify_ssl == True:
+            err_msg = ('Can not simultaneously verify ssl connection and '
+                'use http:// protocol.\n')
+            err_msg += verify_ssl_notice
+            raise exc.ConnectionError(err_msg)
+
         # Call the superclass method.
         try:
             with warnings.catch_warnings():
@@ -103,17 +116,27 @@ class Client(Session):
         except SSLError as ex:
             # Throw error if verify_ssl not set to false and server
             #  is not using verified certificate.
-            if settings.verbose:
-                debug.log('SSL connection failed:', fg='yellow', bold=True)
-                debug.log(str(ex), fg='yellow', bold=True, nl=2)
-            raise exc.ConnectionError(
-                'Could not establish a secure connection. '
-                'Please add the server to your certificate '
-                'authority.\nYou can run this command without verifying SSL '
-                'with the --insecure flag, or permanently disable '
-                'verification by the config setting:\n\n '
-                'tower-cli config verify_ssl false'
-            )
+            message = str(ex)
+            errno = None
+            while (type(errno) is not int):
+                if len(ex.args) == 0:
+                    break
+                for arg in ex.args:
+                    debug.log('inspecting arg: '+str(arg), nl=1)
+                    if type(arg) is int:
+                        errno = arg
+                ex = ex.args[0]
+            err_msg = 'Encountered SSL Error # '+str(errno) + '\n'
+            err_msg += 'Parent error: ' + str(message) + '\n'
+            if errno == 1:
+                err_msg += ('Could not establish a secure connection. '
+                    'Please add the server to your certificate authority.\n')
+                err_msg += verify_ssl_notice
+            elif errno == 8 and url.startswith('https'):
+                err_msg += ('If you are using a server without https, then '
+                    'http:// must be included in the host config.')
+            raise exc.ConnectionError(err_msg)
+
         except ConnectionError as ex:
             # Throw error if server can not be reached.
             if settings.verbose:
