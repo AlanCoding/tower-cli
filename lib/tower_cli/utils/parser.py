@@ -19,6 +19,7 @@ import json
 import ast
 import shlex
 import sys
+from tower_cli.utils.data_structures import OrderedDict
 
 from tower_cli.utils import exceptions as exc, debug
 
@@ -109,20 +110,25 @@ def process_extra_vars(extra_vars_list, force_json=True):
     extra_vars_yaml = ""
     for extra_vars_opt in extra_vars_list:
         # Load file content if necessary
-        if extra_vars_opt.startswith("@"):
-            with open(extra_vars_opt[1:], 'r') as f:
-                extra_vars_opt = f.read()
-            # Convert text markup to a dictionary conservatively
-            opt_dict = string_to_dict(extra_vars_opt, allow_kv=False)
+        if type(extra_vars_opt) is dict or type(extra_vars_opt) is OrderedDict:
+            opt_dict = extra_vars_opt
         else:
-            # Convert text markup to a dictionary liberally
-            opt_dict = string_to_dict(extra_vars_opt, allow_kv=True)
-        # Rolling YAML-based string combination
-        if any(line.startswith("#") for line in extra_vars_opt.split('\n')):
-            extra_vars_yaml += extra_vars_opt + "\n"
-        elif extra_vars_opt != "":
-            extra_vars_yaml += yaml.dump(
-                opt_dict, default_flow_style=False) + "\n"
+            if extra_vars_opt.startswith("@"):
+                with open(extra_vars_opt[1:], 'r') as f:
+                    extra_vars_opt = f.read()
+                # Convert text markup to a dictionary conservatively
+                opt_dict = string_to_dict(extra_vars_opt, allow_kv=False)
+            else:
+                # Convert text markup to a dictionary liberally
+                opt_dict = string_to_dict(extra_vars_opt, allow_kv=True)
+            # Rolling YAML-based string combination
+            if any(
+                line.startswith("#") for line in extra_vars_opt.split('\n')
+            ):
+                extra_vars_yaml += extra_vars_opt + "\n"
+            elif extra_vars_opt != "":
+                extra_vars_yaml += yaml.dump(
+                    opt_dict, default_flow_style=False) + "\n"
         # Combine dictionary with cumulative dictionary
         extra_vars.update(opt_dict)
 

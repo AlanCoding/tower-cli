@@ -61,14 +61,14 @@ def standard_registration(t):
     t.register_json('/job_templates/1/launch/', {'job': 42}, method='POST')
 
 
-def jt_vars_registration(t, extra_vars):
+def jt_vars_registration(t, extra_vars, ask_on_launch=True):
     """ Endpoints that are needed to get information from job template.
     This particular combination also entails
     1) version of Tower - 2.2.0
     2) sucessful job launch, id=42
     3) prompts user for variables on launch """
     t.register_json('/job_templates/1/', {
-        'ask_variables_on_launch': True,
+        'ask_variables_on_launch': ask_on_launch,
         'extra_vars': extra_vars,
         'id': 1,
         'name': 'frobnicate',
@@ -146,7 +146,7 @@ class LaunchTests(unittest.TestCase):
         """
         with client.test_mode as t:
             # test with JSON job template extra_vars
-            jt_vars_registration(t, '{"spam": "eggs"}')
+            jt_vars_registration(t, '{"spam": "eggs", "some_path": "./lib/"}')
             with mock.patch.object(click, 'edit') as edit:
                 edit.return_value = '# Nothing.\nfoo: bar'
                 result = self.res.launch(1, no_input=False)
@@ -206,6 +206,28 @@ class LaunchTests(unittest.TestCase):
             ev_json = yaml.load(response_json['extra_vars'])
             self.assertTrue('foo' in ev_json)
             self.assertTrue('spam' in ev_json)
+            self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
+
+    def test_job_template_variables_as_dict(self):
+        """Some old versions of Ansible Tower might return Job Template extra
+        vars as a dictionary inside of the response JSON.
+        Establish that such a format of extra_vars will not conflict with
+        the variable merging processing with runtime extra_vars.
+        """
+        with client.test_mode as t:
+            JT_extra_vars_dict = {
+                "spam": "eggs",
+                "library_path": "./my_folder/my_config/"
+            }
+            jt_vars_registration(t, JT_extra_vars_dict, ask_on_launch=False)
+            result = self.res.launch(1, extra_vars=['foo: bar'])
+            # Process response
+            response_json = yaml.load(t.requests[3].body)
+            ev_json = yaml.load(response_json['extra_vars'])
+            # Check presence of all extra_vars
+            self.assertDictContainsSubset({"foo": "bar"}, ev_json)
+            self.assertDictContainsSubset(JT_extra_vars_dict, ev_json)
+            # Check basic info about job
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
     def test_job_template_variables_post_24(self):
