@@ -148,7 +148,7 @@ class LaunchTests(unittest.TestCase):
             monitor_registration(t)
             with mock.patch.object(type(self.res), 'monitor') as monitor:
                 self.res.launch(1, monitor=True)
-                monitor.assert_called_once_with(42, timeout=None, stdout=False)
+                monitor.assert_called_once_with(42, timeout=None, stdout=True)
 
     def test_extra_vars_at_runtime(self):
         """Establish that if we should be asking for extra variables at
