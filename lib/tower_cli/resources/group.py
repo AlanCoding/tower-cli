@@ -190,7 +190,7 @@ class Resource(models.Resource):
 
         # Option to list children of a parent group
         if kwargs.get('parent_group', None):
-            parent_data = self.set_child_endpoint(
+            self.set_child_endpoint(
                 parent=kwargs['parent_group'],
                 inventory=kwargs.get('inventory', None)
             )
