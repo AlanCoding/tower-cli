@@ -17,9 +17,10 @@ from __future__ import absolute_import, unicode_literals
 
 import click
 
-from tower_cli import models
+from tower_cli import models, resources
 from tower_cli.utils import types
 from tower_cli.utils import parser
+from tower_cli.api import client
 
 
 class Resource(models.Resource):
@@ -100,3 +101,30 @@ class Resource(models.Resource):
         return super(Resource, self).modify(
             pk=pk, create_on_missing=create_on_missing, **kwargs
         )
+
+    @resources.command
+    def print_survey(self, pk=None, **kwargs):
+        survey_spec = self.download_survey(pk, **kwargs)
+        return survey_spec
+
+    def survey_text(self, pk=None, **kwargs):
+        survey_spec = self.download_survey(pk, **kwargs)
+        return_text = '\n# SURVEY QUESTIONS'
+        for q in survey_spec['spec']:
+            return_text += (
+                '\n\n# Survey Question: ' +
+                q['question_name'] + '\n# (' + q['type'] + ')' +
+                '\n' + q['variable'] + ': ' + str(q['default']))
+
+    def download_survey(self, pk=None, check_enabled=True):
+        if not pk:
+            JT_data = self.get(**kwargs)
+            pk = JT_data['id']
+        elif not check_enabled:
+            JT_data = self.get(pk)
+        if check_enabled:
+            if not JT_data.get('survey_enabled', False):
+                return {}
+        survey_spec = client.get(
+            '/job_templates/%s/survey_spec/' % pk).json()
+        return survey_spec

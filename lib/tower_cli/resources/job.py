@@ -111,14 +111,8 @@ class Resource(models.ExeResource):
             # Survey questions, variables, types, and defaults
             # added to the editor's initial canvas
             if data.get('survey_enabled', False):
-                initial += '\n# SURVEY QUESTIONS'
-                survey_spec = client.get(
-                    '/job_templates/%s/survey_spec/' % jt['id']).json()
-                for q in survey_spec['spec']:
-                    initial += (
-                        '\n\n# Survey Question: ' +
-                        q['question_name'] + '\n# (' + q['type'] + ')' +
-                        '\n' + q['variable'] + ': ' + str(q['default']))
+                initial += jt_resource.survey_text(
+                    jt['id'], check_enabled=False)
             # Create the extra_vars parameter from the user input
             extra_vars = click.edit(initial) or ''
             if extra_vars != initial:
