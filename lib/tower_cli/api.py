@@ -47,7 +47,7 @@ class Client(Session):
             adapter.max_retries = 3
 
         # Store the authenticated user details.
-        #self.me = (self.get('/me').json())['results'][0]
+        self.me = (self.get('/me').json())['results'][0]
 
     @property
     def prefix(self):
