@@ -127,13 +127,13 @@ class Resource(models.ExeResource):
         # step process of posting to /jobs/ and then /jobs/N/start/.
         # For admin users we prefer to use the two step process
         # because more arguments are supported. Like job_tags.
-        supports_job_template_launch = False
+        do_job_template_launch = False
         if 'launch' in jt['related'] and not client.me['is_superuser']:
-            supports_job_template_launch = True
+            do_job_template_launch = True
 
         # Create the new job in Ansible Tower.
         start_data = {}
-        if supports_job_template_launch:
+        if do_job_template_launch:
             endpoint = '/job_templates/%d/launch/' % jt['id']
             if 'extra_vars' in data and len(data['extra_vars']) > 0:
                 start_data['extra_vars'] = data['extra_vars']
@@ -164,7 +164,7 @@ class Resource(models.ExeResource):
 
         # If this used the /job_template/N/launch/ route, get the job
         # ID from the result.
-        if supports_job_template_launch:
+        if do_job_template_launch:
             job_id = job_started.json()['job']
 
         # Get some information about the running job to print
