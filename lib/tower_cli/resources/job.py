@@ -122,11 +122,13 @@ class Resource(models.ExeResource):
                 extra_vars_list, force_json=True
             )
 
-        # In Tower 2.1 and later, we create the new job with
+        # In Tower 2.1 and later, non admin users should create the new job with
         # /job_templates/N/launch/; in Tower 2.0 and before, there is a two
         # step process of posting to /jobs/ and then /jobs/N/start/.
+        # For admin users we prefer to use the two step process
+        # because more arguments are supported. Like job_tags.
         supports_job_template_launch = False
-        if 'launch' in jt['related']:
+        if 'launch' in jt['related'] and not client.me['is_superuser']:
             supports_job_template_launch = True
 
         # Create the new job in Ansible Tower.
