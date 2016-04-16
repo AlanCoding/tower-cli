@@ -122,13 +122,17 @@ class Resource(models.ExeResource):
                 extra_vars_list, force_json=True
             )
 
-        # In Tower 2.1 and later, non admin users should create the new job with
-        # /job_templates/N/launch/; in Tower 2.0 and before, there is a two
-        # step process of posting to /jobs/ and then /jobs/N/start/.
+        # Get authenticated user details to determine permissions.
+        user = client.get('/me/').json()['results'][0]
+
+        # In Tower 2.1 and later, non admin users should create the new job
+        # with /job_templates/N/launch/; in Tower 2.0 and before,
+        # there is a two step process of posting to /jobs/ and
+        # then /jobs/N/start/.
         # For admin users we prefer to use the two step process
         # because more arguments are supported. Like job_tags.
         do_job_template_launch = False
-        if 'launch' in jt['related'] and not client.me['is_superuser']:
+        if 'launch' in jt['related'] and not user['is_superuser']:
             do_job_template_launch = True
 
         # Create the new job in Ansible Tower.

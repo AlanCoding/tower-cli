@@ -39,15 +39,10 @@ class Client(Session):
 
       [1]: http://docs.python-requests.org/en/latest/
     """
-    me = {}
-
     def __init__(self):
         super(Client, self).__init__()
         for adapter in self.adapters.values():
             adapter.max_retries = 3
-
-        # Store the authenticated user details.
-        self.me = (self.get('/me').json())['results'][0]
 
     @property
     def prefix(self):
