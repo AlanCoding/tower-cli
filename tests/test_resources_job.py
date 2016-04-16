@@ -28,6 +28,20 @@ from tests.compat import unittest, mock
 from tower_cli.conf import settings
 
 
+def register_me(t):
+    t.register_json(
+        '/me/',
+        {
+            'results': [
+                {
+                    'is_superuser': False,
+                }
+            ]
+        },
+        method='GET'
+    )
+
+
 # Standard functions used for space and readability
 # these operate on the test client, t
 def register_get(t):
@@ -59,6 +73,7 @@ def standard_registration(t):
     # A POST to the launch endpoint will launch a job, and we
     # expect that the tower server will return the job number
     t.register_json('/job_templates/1/launch/', {'job': 42}, method='POST')
+    register_me(t)
 
 
 def jt_vars_registration(t, extra_vars):
@@ -79,6 +94,7 @@ def jt_vars_registration(t, extra_vars):
     t.register_json('/job_templates/1/launch/', {}, method='GET')
     t.register_json('/job_templates/1/launch/', {'job': 42},
                     method='POST')
+    register_me(t)
 
 
 class LaunchTests(unittest.TestCase):
@@ -118,7 +134,7 @@ class LaunchTests(unittest.TestCase):
             standard_registration(t)
             self.res.launch(1, tags="a, b, c")
             self.assertEqual(
-                json.loads(t.requests[2].body)['job_tags'], 'a, b, c',
+                json.loads(t.requests[3].body)['job_tags'], 'a, b, c',
             )
 
     def test_launch_w_tuple_extra_vars(self):
@@ -156,7 +172,7 @@ class LaunchTests(unittest.TestCase):
                 )
             self.assertDictContainsSubset(
                 {'foo': 'bar'},
-                json.loads(json.loads(t.requests[3].body)['extra_vars'])
+                json.loads(json.loads(t.requests[4].body)['extra_vars'])
             )
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
@@ -192,8 +208,8 @@ class LaunchTests(unittest.TestCase):
             with mock.patch.object(click, 'edit') as edit:
                 edit.return_value = initial
                 self.res.launch(1, no_input=False)
-                self.assertEqual(t.requests[2].method, 'POST')
-                self.assertEqual(t.requests[2].body, '{}')
+                self.assertEqual(t.requests[3].method, 'POST')
+                self.assertEqual(t.requests[3].body, '{}')
 
     def test_job_template_variables(self):
         """Establish that job template extra_vars are combined with local
@@ -202,7 +218,7 @@ class LaunchTests(unittest.TestCase):
         with client.test_mode as t:
             jt_vars_registration(t, 'spam: eggs')
             result = self.res.launch(1, extra_vars=['foo: bar'])
-            response_json = yaml.load(t.requests[3].body)
+            response_json = yaml.load(t.requests[4].body)
             ev_json = yaml.load(response_json['extra_vars'])
             self.assertTrue('foo' in ev_json)
             self.assertTrue('spam' in ev_json)
@@ -215,7 +231,7 @@ class LaunchTests(unittest.TestCase):
             jt_vars_registration(t, 'spam: eggs')
             t.register_json('/config/', {'version': '2.4'}, method='GET')
             result = self.res.launch(1, extra_vars=['foo: bar'])
-            response_json = yaml.load(t.requests[3].body)
+            response_json = yaml.load(t.requests[4].body)
             ev_json = yaml.load(response_json['extra_vars'])
             self.assertTrue('foo' in ev_json)
             self.assertTrue('spam' not in ev_json)
@@ -239,6 +255,7 @@ class LaunchTests(unittest.TestCase):
             t.register_json('/jobs/', {'id': 42}, method='POST')
             t.register_json('/jobs/42/start/', {}, method='GET')
             t.register_json('/jobs/42/start/', {}, method='POST')
+            register_me(t)
             with mock.patch.object(click, 'edit') as edit:
                 edit.return_value = '# Nothing.\nfoo: bar'
                 result = self.res.launch(1, no_input=False)
@@ -248,7 +265,7 @@ class LaunchTests(unittest.TestCase):
                 )
             self.assertDictContainsSubset(
                 {'foo': 'bar'},
-                json.loads(json.loads(t.requests[2].body)['extra_vars'])
+                json.loads(json.loads(t.requests[3].body)['extra_vars'])
             )
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
@@ -266,11 +283,12 @@ class LaunchTests(unittest.TestCase):
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
                             method='POST')
+            register_me(t)
             result = self.res.launch(1, extra_vars=['foo: bar'])
 
             self.assertDictContainsSubset(
                 {'foo': 'bar'},
-                json.loads(json.loads(t.requests[2].body)['extra_vars'])
+                json.loads(json.loads(t.requests[3].body)['extra_vars'])
             )
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
@@ -288,11 +306,12 @@ class LaunchTests(unittest.TestCase):
             t.register_json('/job_templates/1/launch/', {}, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
                             method='POST')
+            register_me(t)
             result = self.res.launch(1, extra_vars=['foo: bar'])
 
             self.assertDictContainsSubset(
                 {'foo': 'bar'},
-                json.loads(json.loads(t.requests[2].body)['extra_vars'])
+                json.loads(json.loads(t.requests[3].body)['extra_vars'])
             )
             self.assertDictContainsSubset({'changed': True, 'id': 42}, result)
 
@@ -312,6 +331,7 @@ class LaunchTests(unittest.TestCase):
             }, method='GET')
             t.register_json('/job_templates/1/launch/', {'job': 42},
                             method='POST')
+            register_me(t)
 
             with mock.patch('tower_cli.resources.job.getpass') as getpass:
                 getpass.return_value = 'bar'
