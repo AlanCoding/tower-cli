@@ -197,6 +197,7 @@ class Resource(models.Resource):
                 parent=kwargs['parent'],
                 inventory=kwargs.get('inventory', None)
             )
+            kwargs.pop('parent')
 
         # Sanity check: If we got `--root` and no inventory, that's an
         # error.
@@ -243,7 +244,7 @@ class Resource(models.Resource):
     @click.option('--group', help='The group to move.')
     @click.option('--parent', help='Destination group to move into.')
     @click.option('--inventory', type=types.Related('inventory'))
-    def disassociate(self, group, parent):
+    def disassociate(self, group, parent, **kwargs):
         """Disassociate this group from the specified group."""
         parent_id = self.lookup_with_inventory(parent, kwargs.get('inventory', None))['id']
         group_id = self.lookup_with_inventory(group, kwargs.get('inventory', None))['id']
