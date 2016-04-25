@@ -236,8 +236,10 @@ class Resource(models.Resource):
     @click.option('--inventory', type=types.Related('inventory'))
     def associate(self, group, parent, **kwargs):
         """Associate this group with the specified group."""
-        parent_id = self.lookup_with_inventory(parent, kwargs.get('inventory', None))['id']
-        group_id = self.lookup_with_inventory(group, kwargs.get('inventory', None))['id']
+        parent_id = self.lookup_with_inventory(
+            parent, kwargs.get('inventory', None))['id']
+        group_id = self.lookup_with_inventory(
+            group, kwargs.get('inventory', None))['id']
         return self._assoc('children', parent_id, group_id)
 
     @resources.command(use_fields_as_options=False)
@@ -246,8 +248,10 @@ class Resource(models.Resource):
     @click.option('--inventory', type=types.Related('inventory'))
     def disassociate(self, group, parent, **kwargs):
         """Disassociate this group from the specified group."""
-        parent_id = self.lookup_with_inventory(parent, kwargs.get('inventory', None))['id']
-        group_id = self.lookup_with_inventory(group, kwargs.get('inventory', None))['id']
+        parent_id = self.lookup_with_inventory(
+            parent, kwargs.get('inventory', None))['id']
+        group_id = self.lookup_with_inventory(
+            group, kwargs.get('inventory', None))['id']
         return self._disassoc('children', parent_id, group_id)
 
     def _get_inventory_source_id(self, group):

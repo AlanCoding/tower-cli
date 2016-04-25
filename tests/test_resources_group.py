@@ -87,7 +87,7 @@ class GroupTests(unittest.TestCase):
             with mock.patch.object(models.Resource, 'get') as super_get:
                 super_get.return_value = {'id': 2, 'inventory': 1}
                 with client.test_mode as t:
-                    answer = self.gr.create(name='Foo', parent_group=2)
+                    answer = self.gr.create(name='Foo', parent=2)
                     self.assertEqual(len(t.requests), 0)
                 super_get.assert_called_once_with(2)
             super_create.assert_called_once_with(
