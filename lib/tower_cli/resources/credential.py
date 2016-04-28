@@ -32,11 +32,19 @@ class Resource(models.Resource):
         display=False,
         type=types.Related('user'),
         required=False,
+        no_lookup=True,
     )
     team = models.Field(
-        display=True,
+        display=False,
         type=types.Related('team'),
         required=False,
+        no_lookup=True,
+    )
+    organization = models.Field(
+        display=False,
+        type=types.Related('organization'),
+        required=False,
+        no_lookup=True,
     )
 
     # What type of credential is this (machine, SCM, etc.)?
@@ -57,6 +65,11 @@ class Resource(models.Resource):
     # need project to use openstack
     project = models.Field(
         help_text='The identifier for the project.',
+        required=False, display=False
+    )
+    # need domain to use openstack Keystone version 3
+    domain = models.Field(
+        help_text='The identifier for the domain.',
         required=False, display=False
     )
 
