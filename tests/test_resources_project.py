@@ -35,6 +35,9 @@ class CreateTests(unittest.TestCase):
             t.register_json('/projects/', {'count': 0, 'results': [],
                             'next': None, 'previous': None},
                             method='GET')
+            # OPTIONS check is used to determine how the linkage is done
+            t.register_json('/projects/', {'actions': {'POST': {}}},
+                            method='OPTIONS')
             t.register_json('/projects/', {'id': 42}, method='POST')
             # The org endpoint can be used to lookup org pk given org name
             t.register_json('/organizations/1/', {'id': 1}, method='GET')
@@ -48,7 +51,9 @@ class CreateTests(unittest.TestCase):
             result = self.res.create(
                 name='bar', organization=1, scm_type="git"
             )
-            self.assertEqual(t.requests[0].method, 'GET')
+            self.assertEqual(t.requests[0].method, 'OPTIONS')
+            self.assertEqual(t.requests[1].method, 'GET')
+            self.assertEqual(t.requests[2].method, 'POST')
             self.assertEqual(t.requests[-1].method, 'POST')
             self.assertDictContainsSubset({'id': 42}, result)
 
