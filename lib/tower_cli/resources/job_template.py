@@ -116,7 +116,7 @@ class Resource(models.Resource):
                 q['question_name'] + '\n# (' + q['type'] + ')' +
                 '\n' + q['variable'] + ': ' + str(q['default']))
 
-    def download_survey(self, pk=None, check_enabled=True):
+    def download_survey(self, pk=None, check_enabled=True, **kwargs):
         if not pk:
             JT_data = self.get(**kwargs)
             pk = JT_data['id']
