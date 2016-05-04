@@ -16,7 +16,8 @@
 import click
 
 from tower_cli import models
-from tower_cli.utils import types
+from tower_cli.utils import types, debug
+from tower_cli.api import client
 
 
 class Resource(models.Resource):
@@ -31,20 +32,17 @@ class Resource(models.Resource):
     user = models.Field(
         display=False,
         type=types.Related('user'),
-        required=False,
-        no_lookup=True,
+        required=False
     )
     team = models.Field(
         display=False,
         type=types.Related('team'),
-        required=False,
-        no_lookup=True,
+        required=False
     )
     organization = models.Field(
         display=False,
         type=types.Related('organization'),
-        required=False,
-        no_lookup=True,
+        required=False
     )
 
     # What type of credential is this (machine, SCM, etc.)?
@@ -112,3 +110,13 @@ class Resource(models.Resource):
     become_username = models.Field(required=False, display=False)
     become_password = models.Field(password=True, required=False)
     vault_password = models.Field(password=True, required=False)
+
+    def create(self, **kwargs):
+        if 'user' in kwargs or 'team' in kwargs or 'organization' in kwargs:
+            debug.log('Checking Project API Details.', header='details')
+            r = client.options('/credentials/')
+            if 'organization' in r.json()['actions']['POST']:
+                for i in range(len(self.fields)):
+                    if self.fields[i] in ('user', 'team', 'credential'):
+                        self.fields[i].no_lookup = True
+        return super(Resource, self).create(**kwargs)
