@@ -61,3 +61,31 @@ class CredentialTests(unittest.TestCase):
                 mock_create.assert_called_once_with(
                     name="foobar", organization="Foo Ops")
                 self.assertTrue(cred_res.fields[2].no_lookup)
+
+    def test_create_with_special_fields_new_functional(self):
+        """Establish that the correct GET data is used with the new
+        method for creating credentials."""
+        with client.test_mode as t:
+            t.register_json(
+                '/credentials/', {'actions': {'POST': {
+                    'organization': 'information'}}}, method='OPTIONS')
+            t.register_json('/credentials/', {'count': 0, 'results': [],
+                            'next': None, 'previous': None}, method='GET')
+            t.register_json('/credentials/', {'count': 0, 'results': [],
+                            'next': None, 'previous': None}, method='GET')
+            t.register_json('/credentials/', {'id': 42}, method='POST')
+
+            cred_res = tower_cli.get_resource('credential')
+            cred_res.create(name="foobar", user=1, kind="ssh")
+            self.assertTrue(cred_res.fields[2].no_lookup)
+
+            # Verify request data is correct
+            self.assertEqual(len(t.requests), 3)
+            self.assertEqual(t.requests[0].method, 'OPTIONS')
+            self.assertEqual(t.requests[1].method, 'GET')
+            self.assertEqual(t.requests[2].method, 'POST')
+            self.assertTrue('name=foobar' in t.requests[1].url)
+            # Make sure special fields not used for GET
+            self.assertTrue('user' not in t.requests[1].url)
+            # Make sure special files are used in actual POST
+            self.assertTrue('user' in t.requests[2].body)

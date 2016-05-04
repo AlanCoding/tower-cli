@@ -32,17 +32,17 @@ class Resource(models.Resource):
     user = models.Field(
         display=False,
         type=types.Related('user'),
-        required=False
+        required=False,
     )
     team = models.Field(
         display=False,
         type=types.Related('team'),
-        required=False
+        required=False,
     )
     organization = models.Field(
         display=False,
         type=types.Related('organization'),
-        required=False
+        required=False,
     )
 
     # What type of credential is this (machine, SCM, etc.)?
