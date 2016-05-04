@@ -117,6 +117,6 @@ class Resource(models.Resource):
             r = client.options('/credentials/')
             if 'organization' in r.json()['actions']['POST']:
                 for i in range(len(self.fields)):
-                    if self.fields[i] in ('user', 'team', 'credential'):
+                    if self.fields[i].name in ('user', 'team', 'credential'):
                         self.fields[i].no_lookup = True
         return super(Resource, self).create(**kwargs)
