@@ -56,13 +56,15 @@ class Resource(models.ExeResource):
                        'Does nothing if --monitor is not sent.')
     @click.option('--no-input', is_flag=True, default=False,
                   help='Suppress any requests for input.')
+    @click.option('--direct', is_flag=True, default=False,
+                  help='POST directly to jobs endpoint (only superusers).')
     @click.option('--extra-vars', required=False, multiple=True,
                   help='yaml format text that contains extra variables '
                        'to pass on. Use @ to get these from a file.')
     @click.option('--tags', required=False,
                   help='Specify tagged actions in the playbook to run.')
     def launch(self, job_template=None, tags=None, monitor=False, timeout=None,
-               no_input=True, extra_vars=None, **kwargs):
+               no_input=True, extra_vars=None, direct=False, **kwargs):
         """Launch a new job based on a job template.
 
         Creates a new job in Ansible Tower, immediately starts it, and
@@ -122,17 +124,14 @@ class Resource(models.ExeResource):
                 extra_vars_list, force_json=True
             )
 
-        # Get authenticated user details to determine permissions.
-        user = client.get('/me/').json()['results'][0]
-
         # In Tower 2.1 and later, non admin users should create the new job
         # with /job_templates/N/launch/; in Tower 2.0 and before,
         # there is a two step process of posting to /jobs/ and
         # then /jobs/N/start/.
-        # For admin users we prefer to use the two step process
+        # admin users can optionally use the two step process
         # because more arguments are supported. Like job_tags.
         do_job_template_launch = False
-        if 'launch' in jt['related'] and not user['is_superuser']:
+        if 'launch' in jt['related'] and not direct:
             do_job_template_launch = True
 
         # Create the new job in Ansible Tower.
