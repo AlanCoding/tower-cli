@@ -23,7 +23,7 @@ from tower_cli.api import client
 class Resource(models.Resource):
     cli_help = 'Manage credentials within Ansible Tower.'
     endpoint = '/credentials/'
-    identity = ('user', 'team', 'kind', 'name')
+    identity = ('username', 'user', 'team', 'kind', 'name')
 
     name = models.Field(unique=True)
     description = models.Field(required=False, display=False)
@@ -95,6 +95,7 @@ class Resource(models.Resource):
 
     # Method with which to esclate
     become_method = models.Field(
+        display=False,
         help_text='Privledge escalation method. ',
         type=types.MappedChoice([
             ('', 'None'),
@@ -112,7 +113,8 @@ class Resource(models.Resource):
     vault_password = models.Field(password=True, required=False)
 
     def create(self, **kwargs):
-        if 'user' in kwargs or 'team' in kwargs or 'organization' in kwargs:
+        if (kwargs.get('user', False) or kwargs.get('team', False) or
+                kwargs.get('organization', False)):
             debug.log('Checking Project API Details.', header='details')
             r = client.options('/credentials/')
             if 'organization' in r.json()['actions']['POST']:
