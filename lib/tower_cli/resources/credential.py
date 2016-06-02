@@ -65,11 +65,6 @@ class Resource(models.Resource):
         help_text='The identifier for the project.',
         required=False, display=False
     )
-    # need domain to use openstack Keystone version 3
-    domain = models.Field(
-        help_text='The identifier for the domain.',
-        required=False, display=False
-    )
 
     # SSH and SCM fields.
     username = models.Field(
