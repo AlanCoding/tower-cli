@@ -25,6 +25,7 @@ import re
 import sys
 import time
 from copy import copy
+from base64 import b64decode
 
 import six
 
@@ -990,14 +991,12 @@ class MonitorableResource(ResourceMethods):
                   help='If provided, this command (not the job) will time out '
                        'after the given number of seconds.')
     def wait(self, pk, min_interval=1, max_interval=30,
-                timeout=None, outfile=sys.stdout, **kwargs):
+             timeout=None, outfile=sys.stdout, **kwargs):
         """Halt until the job is no longer running.
 
         Blocks further input until the job completes (whether successfully or
         unsuccessfully) and a final status can be given.
         """
-        dots = itertools.cycle([0, 1, 2, 3])
-        longest_string = 0
         interval = min_interval
         start = time.time()
 
