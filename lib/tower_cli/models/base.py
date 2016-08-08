@@ -835,6 +835,49 @@ class MonitorableResource(ResourceMethods):
         raise NotImplementedError('This resource does not implement a status '
                                   'method, and must do so.')
 
+    def lookup_stdout(self, pk=None, start_line=None, end_line=None):
+        """Print out the plaintext standard out of the unified job to the
+        command line. Note that failed and incomplete jobs will not succeed
+        in this request.
+        """
+        debug.log('Requesting a copy of job standard output',
+                  header='details')
+        stdout_url = '%s%d/stdout/' % (self.endpoint, pk)
+        payload = {
+            'format': 'json', 'content_encoding': 'base64',
+            'content_format': 'ansi'}
+        if start_line:
+            payload['start_line'] = start_line
+        if end_line:
+            payload['end_line'] = end_line
+        debug.log('Requesting a copy of job standard output',
+                  header='details')
+        resp = client.get(stdout_url, params=payload).json()
+        content = b64decode(resp['content'])
+
+        return content
+
+    @resources.command
+    @click.option('--start-line', required=False, type=int,
+                  help='Line at which to start printing the standard out.')
+    @click.option('--end-line', required=False, type=int,
+                  help='Line at which to end printing the standard out.')
+    def stdout(self, pk=None, start_line=None, end_line=None, **kwargs):
+        """Print out the plaintext standard out of the unified job to the
+        command line. Note that failed and incomplete jobs will not succeed
+        in this request.
+        """
+        # Search for the record if pk not given
+        if not pk:
+            existing_data = self.get(**kwargs)
+            pk = existing_data['id']
+
+        content = self.lookup_stdout(pk, start_line, end_line)
+        if len(content) > 0:
+            click.echo(content, nl=0)
+
+        return {"changed": False}
+
     @resources.command
     @click.option('--min-interval',
                   default=1, help='The minimum interval to request an update '
@@ -859,16 +902,9 @@ class MonitorableResource(ResourceMethods):
         start = time.time()
 
         # variables for the stdout stream
-        STDOUT_STEP = 500
         WAITING_STR = "Waiting for results..."
         start_line = 0
-        end_line = STDOUT_STEP
-        content = ""
         not_yet_started = True
-        stdout_url = '%s%d/stdout/' % (self.endpoint, pk)
-        payload = {'format': 'json', 'content_encoding': 'base64',
-                   'content_format': 'ansi',
-                   'start_line': start_line, 'end_line': end_line}
 
         # Poll the Ansible Tower instance for status, and print the status
         # to the outfile (usually standard out).
@@ -933,19 +969,12 @@ class MonitorableResource(ResourceMethods):
             # time hits, we do the status check as part of the normal cycle.
             if time.time() - last_poll > interval:
                 if result['status'] == 'running':
-                    payload['start_line'] = start_line
-                    payload['end_line'] = end_line
-                    debug.log('Checking server for updates to stdandard out',
-                              header='details')
-                    resp = client.get(stdout_url, params=payload).json()
-                    content = b64decode(resp['content'])
-
+                    content = self.lookup_stdout(pk, start_line)
                     # echo details and reset
                     if len(content) > 0 and content != WAITING_STR:
                         click.echo(content, nl=0)
                     line_count = content.count('\n')
                     start_line += line_count
-                    end_line += STDOUT_STEP
                 result = self.status(pk, detail=True)
                 last_poll = time.time()
 
@@ -1025,38 +1054,18 @@ class MonitorableResource(ResourceMethods):
                 raise exc.Timeout('Waiting aborted due to timeout.')
 
             # Put the process to sleep briefly.
-            time.sleep(0.2)
+            time.sleep(float(interval))
 
-            # Sanity check: Have we reached our timeout?
-            # If we're about to time out, then we need to ensure that we
-            # do one last check.
-            #
-            # Note that the actual timeout will be performed at the start
-            # of the **next** iteration, so there's a chance for the job's
-            # completion to be noted first.
-            timeout_check = time.time()
-            if timeout and timeout_check - start > timeout:
-                last_poll -= interval
+            # Ask the server for a new status.
+            result = self.status(pk, detail=True)
+            last_poll = time.time()
+            interval = min(interval * 1.5, max_interval)
 
-            # If enough time has elapsed, ask the server for a new status.
-            #
-            # Note that this doesn't actually do a status check every single
-            # time; we want the "spinner" to spin even if we're not actively
-            # doing a check.
-            #
-            # So, what happens is that we are "counting down" (actually up)
-            # to the next time that we intend to do a check, and once that
-            # time hits, we do the status check as part of the normal cycle.
-            if time.time() - last_poll > interval:
-                result = self.status(pk, detail=True)
-                last_poll = time.time()
-                interval = min(interval * 1.5, max_interval)
-
-                # If the outfile is *not* a TTY, print a status update
-                # when and only when we make an actual check to job status.
-                if not is_tty(outfile) or settings.verbose:
-                    click.echo('Current status: %s' % result['status'],
-                               file=outfile)
+            # If the outfile is *not* a TTY, print a status update
+            # when and only when we make an actual check to job status.
+            if not is_tty(outfile) or settings.verbose:
+                click.echo('Current status: %s' % result['status'],
+                           file=outfile)
 
         # Return the job ID and other response data
         answer = OrderedDict((

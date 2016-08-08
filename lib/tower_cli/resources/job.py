@@ -55,8 +55,8 @@ class Resource(models.ExeResource):
                   help='If sent, immediately calls `job monitor` on the newly '
                        'launched job rather than exiting with a success.')
     @click.option('--wait', is_flag=True, default=False,
-                  help='If sent, immediately calls `job wait` on the newly '
-                       'launched, without print status.')
+                  help='Monitor the status of the job, but do not print '
+                       'while job is in progress.')
     @click.option('--timeout', required=False, type=int,
                   help='If provided with --monitor, this command (not the job)'
                        ' will time out after the given number of seconds. '
