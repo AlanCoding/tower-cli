@@ -23,6 +23,7 @@ from tower_cli.utils import debug, exceptions as exc, types
 class Resource(models.Resource, models.MonitorableResource):
     cli_help = 'Manage projects within Ansible Tower.'
     endpoint = '/projects/'
+    unified_job_type = '/project_updates/'
 
     name = models.Field(unique=True)
     description = models.Field(required=False, display=False)
@@ -157,10 +158,11 @@ class Resource(models.Resource, models.MonitorableResource):
         # Commence the update.
         debug.log('Updating the project.', header='details')
         result = client.post('/projects/%d/update/' % pk)
+        project_update_id = result.json()['project_update']
 
         # If we were told to monitor the project update's status, do so.
         if monitor:
-            return self.monitor(pk, timeout=timeout)
+            return self.monitor(project_update_id, timeout=timeout)
 
         # Return the project update ID.
         return {

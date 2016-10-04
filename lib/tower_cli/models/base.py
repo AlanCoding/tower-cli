@@ -830,6 +830,11 @@ class MonitorableResource(ResourceMethods):
     """
     abstract = True  # Not inherited.
 
+    def __init__(self, *args, **kwargs):
+        if not hasattr(self, 'unified_job_type'):
+            self.unified_job_type = self.endpoint
+        return super(MonitorableResource, self).__init__(*args, **kwargs)
+
     def status(self, pk, detail=False):
         """A stub method requesting the status of the resource."""
         raise NotImplementedError('This resource does not implement a status '
@@ -842,7 +847,7 @@ class MonitorableResource(ResourceMethods):
         """
         debug.log('Requesting a copy of job standard output',
                   header='details')
-        stdout_url = '%s%d/stdout/' % (self.endpoint, pk)
+        stdout_url = '%s%d/stdout/' % (self.unified_job_type, pk)
         payload = {
             'format': 'json', 'content_encoding': 'base64',
             'content_format': 'ansi'}
@@ -890,21 +895,18 @@ class MonitorableResource(ResourceMethods):
                        'after the given number of seconds.')
     @click.option('--stdout', is_flag=True,
                   help='Prints stdout on a rolling basis.')
-    def monitor(self, pk, min_interval=1, max_interval=30,
-                timeout=None, outfile=sys.stdout, **kwargs):
+    def monitor(self, pk, interval=0.1, timeout=None,
+                outfile=sys.stdout, **kwargs):
         """Monitor a running job.
         Blocks further input until the job completes (whether successfully or
         unsuccessfully) and a final status can be given.
         """
-        dots = itertools.cycle([0, 1, 2, 3])
-        longest_string = 0
-        interval = min_interval
+        self.wait(pk, exit_on='running')
+
         start = time.time()
 
         # variables for the stdout stream
-        WAITING_STR = "Waiting for results..."
         start_line = 0
-        not_yet_started = True
 
         # Poll the Ansible Tower instance for status, and print the status
         # to the outfile (usually standard out).
@@ -914,15 +916,20 @@ class MonitorableResource(ResourceMethods):
         # and run in Python.  This seems fine; outfile can be set to /dev/null
         # and very much the normal use for this method should be CLI
         # monitoring.
-        result = self.status(pk, detail=True)
+        result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+        # result = client.get(self.unified_job_type, params={'id': pk}).json()
+        # result = self.status(pk, detail=True)
         last_poll = time.time()
         timeout_check = 0
+
+        secho('\r------Starting Standard Out Stream------',
+              nl=False, file=outfile, fg='blue')
+        secho(' ', nl=2, file=outfile)
+
         while result['status'] != 'successful':
             # If the job has failed, we want to raise an Exception for that
             # so we get a non-zero response.
             if result['failed']:
-                if is_tty(outfile) and not settings.verbose:
-                    secho('\r' + ' ' * longest_string + '\n', file=outfile)
                 raise exc.JobFailure('Job failed.')
 
             # Sanity check: Have we officially timed out?
@@ -932,68 +939,25 @@ class MonitorableResource(ResourceMethods):
             if timeout and timeout_check - start > timeout:
                 raise exc.Timeout('Monitoring aborted due to timeout.')
 
-            if result['status'] != 'running':
-                # If the outfile is a TTY, print the current status.
-                output = '\rCurrent status: %s%s' % (result['status'],
-                                                     '.' * next(dots))
-
-                if longest_string > len(output):
-                    output += ' ' * (longest_string - len(output))
-                else:
-                    longest_string = len(output)
-                if is_tty(outfile) and not settings.verbose:
-                    secho(output, nl=False, file=outfile)
-
             # Put the process to sleep briefly.
             time.sleep(0.2)
 
-            # Sanity check: Have we reached our timeout?
-            # If we're about to time out, then we need to ensure that we
-            # do one last check.
-            #
-            # Note that the actual timeout will be performed at the start
-            # of the **next** iteration, so there's a chance for the job's
-            # completion to be noted first.
+            # Have we reached our timeout?
             timeout_check = time.time()
             if timeout and timeout_check - start > timeout:
                 last_poll -= interval
 
-            # If enough time has elapsed, ask the server for a new status.
-            #
-            # Note that this doesn't actually do a status check every single
-            # time; we want the "spinner" to spin even if we're not actively
-            # doing a check.
-            #
-            # So, what happens is that we are "counting down" (actually up)
-            # to the next time that we intend to do a check, and once that
-            # time hits, we do the status check as part of the normal cycle.
-            if time.time() - last_poll > interval:
-                if result['status'] == 'running':
-                    content = self.lookup_stdout(pk, start_line)
-                    # echo details and reset
-                    if len(content) > 0 and content != WAITING_STR:
-                        click.echo(content, nl=0)
-                    line_count = content.count('\n')
-                    start_line += line_count
-                result = self.status(pk, detail=True)
-                last_poll = time.time()
-
-                if not (result['status'] == 'running'):
-                    # If the outfile is *not* a TTY, print a status update
-                    # when and only when we make an actual check to job status.
-                    if not is_tty(outfile) or settings.verbose:
-                        click.echo('Current status: %s' % result['status'],
-                                   file=outfile)
-                elif (not_yet_started and result['status'] == 'running'):
-                    secho('\r------Starting Standard Out Stream------',
-                          nl=False, file=outfile, fg='blue')
-                    secho(' ', nl=2, file=outfile)
-                    not_yet_started = False
-
-            # Wipe out the previous output
-            if is_tty(outfile) and not settings.verbose:
-                secho('\r' + ' ' * longest_string, file=outfile, nl=False)
-                secho('\r', file=outfile, nl=False)
+            if result['status'] == 'running':
+                content = self.lookup_stdout(pk, start_line)
+                # echo details and reset
+                if content.count('\n') > 0 and not content.startswith("Waiting for results"):
+                    click.echo(content, nl=0)
+                line_count = content.count('\n')
+                start_line += line_count
+            result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+            # result = client.get(self.unified_job_type, params={'id': pk}).json()
+            # result = self.status(pk, detail=True)
+            last_poll = time.time()
 
         secho('------End of Standard Out Stream------', nl=2,
               file=outfile, fg='blue')
@@ -1020,12 +984,14 @@ class MonitorableResource(ResourceMethods):
                   help='If provided, this command (not the job) will time out '
                        'after the given number of seconds.')
     def wait(self, pk, min_interval=1, max_interval=30,
-             timeout=None, outfile=sys.stdout, **kwargs):
-        """Halt until the job is no longer running.
-
+                timeout=None, outfile=sys.stdout,
+                exit_on='successful', **kwargs):
+        """Monitor a running job.
         Blocks further input until the job completes (whether successfully or
         unsuccessfully) and a final status can be given.
         """
+        dots = itertools.cycle([0, 1, 2, 3])
+        longest_string = 0
         interval = min_interval
         start = time.time()
 
@@ -1037,13 +1003,16 @@ class MonitorableResource(ResourceMethods):
         # and run in Python.  This seems fine; outfile can be set to /dev/null
         # and very much the normal use for this method should be CLI
         # monitoring.
-        result = self.status(pk, detail=True)
+        result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+        # result = self.status(pk, detail=True)
         last_poll = time.time()
         timeout_check = 0
-        while result['status'] != 'successful':
+        while result['status'] != exit_on:
             # If the job has failed, we want to raise an Exception for that
             # so we get a non-zero response.
             if result['failed']:
+                if is_tty(outfile) and not settings.verbose:
+                    secho('\r' + ' ' * longest_string + '\n', file=outfile)
                 raise exc.JobFailure('Job failed.')
 
             # Sanity check: Have we officially timed out?
@@ -1051,21 +1020,57 @@ class MonitorableResource(ResourceMethods):
             # to see if we were timed out as of the previous iteration.
             # If we are timed out, abort.
             if timeout and timeout_check - start > timeout:
-                raise exc.Timeout('Waiting aborted due to timeout.')
+                raise exc.Timeout('Monitoring aborted due to timeout.')
+
+            # If the outfile is a TTY, print the current status.
+            output = '\rCurrent status: %s%s' % (result['status'],
+                                                 '.' * next(dots))
+            if longest_string > len(output):
+                output += ' ' * (longest_string - len(output))
+            else:
+                longest_string = len(output)
+            if is_tty(outfile) and not settings.verbose:
+                secho(output, nl=False, file=outfile)
 
             # Put the process to sleep briefly.
-            time.sleep(float(interval))
+            time.sleep(0.2)
 
-            # Ask the server for a new status.
-            result = self.status(pk, detail=True)
-            last_poll = time.time()
-            interval = min(interval * 1.5, max_interval)
+            # Sanity check: Have we reached our timeout?
+            # If we're about to time out, then we need to ensure that we
+            # do one last check.
+            #
+            # Note that the actual timeout will be performed at the start
+            # of the **next** iteration, so there's a chance for the job's
+            # completion to be noted first.
+            timeout_check = time.time()
+            if timeout and timeout_check - start > timeout:
+                last_poll -= interval
 
-            # If the outfile is *not* a TTY, print a status update
-            # when and only when we make an actual check to job status.
-            if not is_tty(outfile) or settings.verbose:
-                click.echo('Current status: %s' % result['status'],
-                           file=outfile)
+            # If enough time has elapsed, ask the server for a new status.
+            #
+            # Note that this doesn't actually do a status check every single
+            # time; we want the "spinner" to spin even if we're not actively
+            # doing a check.
+            #
+            # So, what happens is that we are "counting down" (actually up)
+            # to the next time that we intend to do a check, and once that
+            # time hits, we do the status check as part of the normal cycle.
+            if time.time() - last_poll > interval:
+                result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+                # result = self.status(pk, detail=True)
+                last_poll = time.time()
+                interval = min(interval * 1.5, max_interval)
+
+                # If the outfile is *not* a TTY, print a status update
+                # when and only when we make an actual check to job status.
+                if not is_tty(outfile) or settings.verbose:
+                    click.echo('Current status: %s' % result['status'],
+                               file=outfile)
+
+            # Wipe out the previous output
+            if is_tty(outfile) and not settings.verbose:
+                secho('\r' + ' ' * longest_string, file=outfile, nl=False)
+                secho('\r', file=outfile, nl=False)
 
         # Return the job ID and other response data
         answer = OrderedDict((
