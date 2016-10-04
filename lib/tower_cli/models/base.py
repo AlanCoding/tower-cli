@@ -895,73 +895,59 @@ class MonitorableResource(ResourceMethods):
                        'after the given number of seconds.')
     @click.option('--stdout', is_flag=True,
                   help='Prints stdout on a rolling basis.')
-    def monitor(self, pk, interval=0.1, timeout=None,
+    def monitor(self, pk, parent_pk=None, interval=0.01, timeout=None,
                 outfile=sys.stdout, **kwargs):
-        """Monitor a running job.
-        Blocks further input until the job completes (whether successfully or
-        unsuccessfully) and a final status can be given.
         """
+        Stream the standard output from a
+            job, project update, or inventory udpate.
+        If parent_pk is specified, resources is Unified Job Template
+        otherwise, resource is a Unified Job
+        """
+        # Pause until job is in running state
         self.wait(pk, exit_on='running')
 
+        # Loop initialization
         start = time.time()
-
-        # variables for the stdout stream
         start_line = 0
-
-        # Poll the Ansible Tower instance for status, and print the status
-        # to the outfile (usually standard out).
-        #
-        # Note that this is one of the few places where we use `secho`
-        # even though we're in a function that might theoretically be imported
-        # and run in Python.  This seems fine; outfile can be set to /dev/null
-        # and very much the normal use for this method should be CLI
-        # monitoring.
         result = client.get('%s%s' % (self.unified_job_type, pk)).json()
-        # result = client.get(self.unified_job_type, params={'id': pk}).json()
-        # result = self.status(pk, detail=True)
-        last_poll = time.time()
-        timeout_check = 0
 
         secho('\r------Starting Standard Out Stream------',
               nl=False, file=outfile, fg='blue')
         secho(' ', nl=2, file=outfile)
 
+        # Poll the Ansible Tower instance for status, and print
+        # standard out to the out file
         while result['status'] != 'successful':
-            # If the job has failed, we want to raise an Exception for that
-            # so we get a non-zero response.
+
+            # Polling loop exit conditions
             if result['failed']:
                 raise exc.JobFailure('Job failed.')
-
-            # Sanity check: Have we officially timed out?
-            # The timeout check is incremented below, so this is checking
-            # to see if we were timed out as of the previous iteration.
-            # If we are timed out, abort.
-            if timeout and timeout_check - start > timeout:
+            elif timeout and time.time() - start > timeout:
                 raise exc.Timeout('Monitoring aborted due to timeout.')
 
             # Put the process to sleep briefly.
-            time.sleep(0.2)
+            time.sleep(interval)
 
-            # Have we reached our timeout?
-            timeout_check = time.time()
-            if timeout and timeout_check - start > timeout:
-                last_poll -= interval
+            # Make request to get standard out
+            content = self.lookup_stdout(pk, start_line)
 
-            if result['status'] == 'running':
-                content = self.lookup_stdout(pk, start_line)
-                # echo details and reset
-                if content.count('\n') > 0 and not content.startswith("Waiting for results"):
-                    click.echo(content, nl=0)
+            # In the first moments of running the job, the standard out
+            # may not be available yet
+            if not content.startswith("Waiting for results"):
                 line_count = content.count('\n')
                 start_line += line_count
+                # Special de-duplication case for start of stream
+                if line_count == 0 and start_line == 0:
+                    line_count = 1
+                    content = content + '\n'
+                click.echo(content, nl=0)
+
             result = client.get('%s%s' % (self.unified_job_type, pk)).json()
-            # result = client.get(self.unified_job_type, params={'id': pk}).json()
-            # result = self.status(pk, detail=True)
-            last_poll = time.time()
 
         secho('------End of Standard Out Stream------', nl=2,
               file=outfile, fg='blue')
 
+        # TODO: re-evaluate the returned data for UJT/UJ split
         # Return the job ID and other response data
         answer = OrderedDict((
             ('changed', True),
@@ -970,7 +956,10 @@ class MonitorableResource(ResourceMethods):
         answer.update(result)
         # Make sure to return ID of resource and not update number
         # relevant for project creation and update
-        answer['id'] = pk
+        if parent_pk:
+            answer['id'] = parent_pk
+        else:
+            answer['id'] = pk
         return answer
 
     @resources.command

@@ -162,7 +162,7 @@ class Resource(models.Resource, models.MonitorableResource):
 
         # If we were told to monitor the project update's status, do so.
         if monitor:
-            return self.monitor(project_update_id, timeout=timeout)
+            return self.monitor(project_update_id, pk, timeout=timeout)
 
         # Return the project update ID.
         return {

@@ -73,12 +73,12 @@ class Resource(models.MonitorableResource):
         # Run the update.
         debug.log('Updating the inventory source.', header='details')
         r = client.post('%s%d/update/' % (self.endpoint, inventory_source))
-        print ' asdf ' + str(r.json())
         inventory_update_id = r.json()['inventory_update']
 
         # If we were told to monitor the project update's status, do so.
         if monitor:
-            result = self.monitor(inventory_update_id, timeout=timeout)
+            result = self.monitor(inventory_update_id, inventory_source,
+                                  timeout=timeout)
             inventory = client.get('/inventory_sources/%d/' %
                                    result['inventory_source'])\
                               .json()['inventory']
