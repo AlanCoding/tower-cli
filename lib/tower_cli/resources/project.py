@@ -173,22 +173,9 @@ class Resource(models.Resource, models.MonitorableResource):
     @click.option('--detail', is_flag=True, default=False,
                   help='Print more detail.')
     def status(self, pk=None, detail=False, **kwargs):
-        """Print the current job status."""
-        # Get the job from Ansible Tower.
-        debug.log('Asking for project update status.', header='details')
-        project = client.get('/projects/%d/' % pk).json()
-
-        # Determine the appropriate project update.
-        if 'current_update' in project['related']:
-            debug.log('A current update exists; retrieving it.',
-                      header='details')
-            job = client.get(project['related']['current_update'][7:]).json()
-        elif project['related'].get('last_update', None):
-            debug.log('No current update exists; retrieving the most '
-                      'recent update.', header='details')
-            job = client.get(project['related']['last_update'][7:]).json()
-        else:
-            raise exc.NotFound('No project updates exist.')
+        """Print the status of the most recent update."""
+        # Obtain the most recent project update
+        job = self.last_job_data(pk, **kwargs)
 
         # In most cases, we probably only want to know the status of the job
         # and the amount of time elapsed. However, if we were asked for

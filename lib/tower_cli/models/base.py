@@ -840,10 +840,28 @@ class MonitorableResource(ResourceMethods):
         raise NotImplementedError('This resource does not implement a status '
                                   'method, and must do so.')
 
+    def last_job_data(self, pk=None, **kwargs):
+        """
+        Internal utility function for Unified Job Templates
+        Returns data about the last job run off of that UJT
+        """
+        ujt = self.get(pk, include_debug_header=True, **kwargs)
+
+        # Determine the appropriate inventory source update.
+        if 'current_update' in ujt['related']:
+            debug.log('A current job; retrieving it.', header='details')
+            return client.get(ujt['related']['current_update'][7:]).json()
+        elif ujt['related'].get('last_update', None):
+            debug.log('No current job or update exists; retrieving the most '
+                      'recent.', header='details')
+            return client.get(ujt['related']['last_update'][7:]).json()
+        else:
+            raise exc.NotFound('No related jobs or updates exist.')
+
     def lookup_stdout(self, pk=None, start_line=None, end_line=None):
-        """Print out the plaintext standard out of the unified job to the
-        command line. Note that failed and incomplete jobs will not succeed
-        in this request.
+        """
+        Internal utility function to return standard out
+        requires the pk of a unified job
         """
         debug.log('Requesting a copy of job standard output',
                   header='details')
@@ -868,16 +886,22 @@ class MonitorableResource(ResourceMethods):
     @click.option('--end-line', required=False, type=int,
                   help='Line at which to end printing the standard out.')
     def stdout(self, pk=None, start_line=None, end_line=None, **kwargs):
-        """Print out the plaintext standard out of the unified job to the
-        command line. Note that failed and incomplete jobs will not succeed
-        in this request.
         """
-        # Search for the record if pk not given
-        if not pk:
-            existing_data = self.get(**kwargs)
-            pk = existing_data['id']
+        Print out the standard out of a unified job to the command line.
+        For Projects, print the standard out of most recent update
+        For Inventory Sources, print standard out of most recent sync
+        For Jobs, print the job's standard out
+        """
+        # resource is Unified Job Template
+        if self.unified_job_type != self.endpoint:
+            unified_job = self.last_job_data(pk, **kwargs)
+            job_pk = unified_job['id']
+        # resource is Unified Job, but pk not given
+        elif not pk:
+            unified_job = self.get(**kwargs)
+            job_pk = unified_job['id']
 
-        content = self.lookup_stdout(pk, start_line, end_line)
+        content = self.lookup_stdout(job_pk, start_line, end_line)
         if len(content) > 0:
             click.echo(content, nl=0)
 

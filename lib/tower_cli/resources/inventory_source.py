@@ -28,7 +28,7 @@ class Resource(models.MonitorableResource):
 
     credential = models.Field(type=types.Related('credential'), required=False)
     source = models.Field(
-        default='manual',
+        default=None,
         help_text='The type of inventory source in use.',
         type=click.Choice(['', 'file', 'ec2', 'rax', 'vmware',
                            'gce', 'azure', 'azure_rm', 'openstack',
@@ -88,26 +88,12 @@ class Resource(models.MonitorableResource):
         # Done.
         return {'status': 'ok'}
 
-    @resources.command
     @click.option('--detail', is_flag=True, default=False,
                   help='Print more detail.')
-    def status(self, pk, detail=False):
-        """Print the current job status."""
-        # Get the job from Ansible Tower.
-        debug.log('Asking for inventory source status.', header='details')
-        inv_src = client.get('/inventory_sources/%d/' % pk).json()
-
-        # Determine the appropriate inventory source update.
-        if 'current_update' in inv_src['related']:
-            debug.log('A current update exists; retrieving it.',
-                      header='details')
-            job = client.get(inv_src['related']['current_update'][7:]).json()
-        elif inv_src['related'].get('last_update', None):
-            debug.log('No current update exists; retrieving the most '
-                      'recent update.', header='details')
-            job = client.get(inv_src['related']['last_update'][7:]).json()
-        else:
-            raise exc.NotFound('No inventory source updates exist.')
+    def status(self, pk, detail=False, **kwargs):
+        """Print the status of the most recent sync."""
+        # Obtain the most recent inventory sync
+        job = self.last_job_data(pk, **kwargs)
 
         # In most cases, we probably only want to know the status of the job
         # and the amount of time elapsed. However, if we were asked for
