@@ -58,7 +58,8 @@ class Resource(models.MonitorableResource):
                        ' will time out after the given number of seconds. '
                        'Does nothing if --monitor is not sent.')
     @resources.command(use_fields_as_options=False, no_args_is_help=True)
-    def update(self, inventory_source, monitor=False, timeout=None, **kwargs):
+    def update(self, inventory_source, monitor=False, wait=False,
+               timeout=None, **kwargs):
         """Update the given inventory source."""
 
         # Establish that we are able to update this inventory source
@@ -76,9 +77,12 @@ class Resource(models.MonitorableResource):
         inventory_update_id = r.json()['inventory_update']
 
         # If we were told to monitor the project update's status, do so.
-        if monitor:
-            result = self.monitor(inventory_update_id, inventory_source,
-                                  timeout=timeout)
+        if monitor or wait:
+            if monitor:
+                result = self.monitor(inventory_update_id, inventory_source,
+                                      timeout=timeout)
+            elif wait:
+                result = self.wait(inventory_update_id, timeout=timeout)
             inventory = client.get('/inventory_sources/%d/' %
                                    result['inventory_source'])\
                               .json()['inventory']

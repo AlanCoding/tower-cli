@@ -60,8 +60,8 @@ class Resource(models.Resource, models.MonitorableResource):
                   help='If provided with --monitor, the SCM update'
                        ' will time out after the given number of seconds. '
                        'Does nothing if --monitor is not sent.')
-    def create(self, organization=None, monitor=False, timeout=None,
-               fail_on_found=False, force_on_exists=False,
+    def create(self, organization=None, monitor=False, wait=False,
+               timeout=None, fail_on_found=False, force_on_exists=False,
                **kwargs):
         """Create a new item of resource, with or w/o org.
         This would be a shared class with user, but it needs the ability
@@ -100,7 +100,10 @@ class Resource(models.Resource, models.MonitorableResource):
 
         # if the monitor flag is set, wait for the SCM to update
         if monitor and answer.get('changed', False):
+            # TODO: project update id not available, code around this
             return self.monitor(project_id, timeout=timeout)
+        elif wait and answer.get('changed', False):
+            return self.wait(project_id, timeout=timeout)
 
         return answer
 
@@ -137,7 +140,7 @@ class Resource(models.Resource, models.MonitorableResource):
                        ' will time out after the given number of seconds. '
                        'Does nothing if --monitor is not sent.')
     def update(self, pk=None, create_on_missing=False, monitor=False,
-               timeout=None, name=None, organization=None):
+               wait=False, timeout=None, name=None, organization=None):
         """Trigger a project update job within Ansible Tower.
         Only meaningful on non-manual projects.
         """
@@ -163,6 +166,8 @@ class Resource(models.Resource, models.MonitorableResource):
         # If we were told to monitor the project update's status, do so.
         if monitor:
             return self.monitor(project_update_id, pk, timeout=timeout)
+        elif wait:
+            return self.wait(project_update_id, timeout=timeout)
 
         # Return the project update ID.
         return {

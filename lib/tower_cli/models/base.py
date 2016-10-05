@@ -924,8 +924,6 @@ class MonitorableResource(ResourceMethods):
         """
         Stream the standard output from a
             job, project update, or inventory udpate.
-        If parent_pk is specified, resources is Unified Job Template
-        otherwise, resource is a Unified Job
         """
         # Pause until job is in running state
         self.wait(pk, exit_on='running')
@@ -996,10 +994,10 @@ class MonitorableResource(ResourceMethods):
     @click.option('--timeout', required=False, type=int,
                   help='If provided, this command (not the job) will time out '
                        'after the given number of seconds.')
-    def wait(self, pk, min_interval=1, max_interval=30,
-                timeout=None, outfile=sys.stdout,
-                exit_on='successful', **kwargs):
-        """Monitor a running job.
+    def wait(self, pk, min_interval=1, max_interval=30, timeout=None,
+             outfile=sys.stdout, exit_on='successful', **kwargs):
+        """
+        Wait for a running job to finish.
         Blocks further input until the job completes (whether successfully or
         unsuccessfully) and a final status can be given.
         """
@@ -1069,8 +1067,10 @@ class MonitorableResource(ResourceMethods):
             # to the next time that we intend to do a check, and once that
             # time hits, we do the status check as part of the normal cycle.
             if time.time() - last_poll > interval:
-                result = client.get('%s%s' % (self.unified_job_type, pk)).json()
-                # result = self.status(pk, detail=True)
+                # pk should refer to the unified job here
+                # TODO: what if user runs command with project pk?
+                result = client.get(
+                    '%s%s' % (self.unified_job_type, pk)).json()
                 last_poll = time.time()
                 interval = min(interval * 1.5, max_interval)
 
