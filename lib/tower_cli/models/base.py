@@ -863,8 +863,6 @@ class MonitorableResource(ResourceMethods):
         Internal utility function to return standard out
         requires the pk of a unified job
         """
-        debug.log('Requesting a copy of job standard output',
-                  header='details')
         stdout_url = '%s%d/stdout/' % (self.unified_job_type, pk)
         payload = {
             'format': 'json', 'content_encoding': 'base64',
@@ -873,8 +871,7 @@ class MonitorableResource(ResourceMethods):
             payload['start_line'] = start_line
         if end_line:
             payload['end_line'] = end_line
-        debug.log('Requesting a copy of job standard output',
-                  header='details')
+        debug.log('Requesting a copy of job standard output', header='details')
         resp = client.get(stdout_url, params=payload).json()
         content = b64decode(resp['content'])
 
@@ -919,19 +916,23 @@ class MonitorableResource(ResourceMethods):
                        'after the given number of seconds.')
     @click.option('--stdout', is_flag=True,
                   help='Prints stdout on a rolling basis.')
-    def monitor(self, pk, parent_pk=None, interval=0.01, timeout=None,
+    def monitor(self, job_pk, parent_pk=None, interval=0.01, timeout=None,
                 outfile=sys.stdout, **kwargs):
         """
         Stream the standard output from a
             job, project update, or inventory udpate.
         """
+        # If we do not have the unified job info, infer it from parent
+        if job_pk is None:
+            job_pk = self.last_job_data(parent_pk, **kwargs)['id']
+
         # Pause until job is in running state
-        self.wait(pk, exit_on='running')
+        self.wait(job_pk, exit_on='running')
 
         # Loop initialization
         start = time.time()
         start_line = 0
-        result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+        result = client.get('%s%s' % (self.unified_job_type, job_pk)).json()
 
         secho('\r------Starting Standard Out Stream------',
               nl=False, file=outfile, fg='blue')
@@ -951,7 +952,7 @@ class MonitorableResource(ResourceMethods):
             time.sleep(interval)
 
             # Make request to get standard out
-            content = self.lookup_stdout(pk, start_line)
+            content = self.lookup_stdout(job_pk, start_line)
 
             # In the first moments of running the job, the standard out
             # may not be available yet
@@ -964,7 +965,8 @@ class MonitorableResource(ResourceMethods):
                     content = content + '\n'
                 click.echo(content, nl=0)
 
-            result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+            result = client.get(
+                '%s%s' % (self.unified_job_type, job_pk)).json()
 
         secho('------End of Standard Out Stream------', nl=2,
               file=outfile, fg='blue')
@@ -973,7 +975,7 @@ class MonitorableResource(ResourceMethods):
         # Return the job ID and other response data
         answer = OrderedDict((
             ('changed', True),
-            ('id', pk),
+            ('id', job_pk),
         ))
         answer.update(result)
         # Make sure to return ID of resource and not update number
@@ -981,7 +983,7 @@ class MonitorableResource(ResourceMethods):
         if parent_pk:
             answer['id'] = parent_pk
         else:
-            answer['id'] = pk
+            answer['id'] = job_pk
         return answer
 
     @resources.command
@@ -994,13 +996,18 @@ class MonitorableResource(ResourceMethods):
     @click.option('--timeout', required=False, type=int,
                   help='If provided, this command (not the job) will time out '
                        'after the given number of seconds.')
-    def wait(self, pk, min_interval=1, max_interval=30, timeout=None,
-             outfile=sys.stdout, exit_on='successful', **kwargs):
+    def wait(self, job_pk, parent_pk=None, min_interval=1, max_interval=30,
+             timeout=None, outfile=sys.stdout, exit_on='successful', **kwargs):
         """
         Wait for a running job to finish.
         Blocks further input until the job completes (whether successfully or
         unsuccessfully) and a final status can be given.
         """
+        # If we do not have the unified job info, infer it from parent
+        if job_pk is None:
+            job_pk = self.last_job_data(parent_pk, **kwargs)['id']
+
+        # Initialize loop data
         dots = itertools.cycle([0, 1, 2, 3])
         longest_string = 0
         interval = min_interval
@@ -1014,8 +1021,8 @@ class MonitorableResource(ResourceMethods):
         # and run in Python.  This seems fine; outfile can be set to /dev/null
         # and very much the normal use for this method should be CLI
         # monitoring.
-        result = client.get('%s%s' % (self.unified_job_type, pk)).json()
-        # result = self.status(pk, detail=True)
+        result = client.get('%s%s' % (self.unified_job_type, job_pk)).json()
+        # result = self.status(job_pk, detail=True)
         last_poll = time.time()
         timeout_check = 0
         while result['status'] != exit_on:
@@ -1067,10 +1074,8 @@ class MonitorableResource(ResourceMethods):
             # to the next time that we intend to do a check, and once that
             # time hits, we do the status check as part of the normal cycle.
             if time.time() - last_poll > interval:
-                # pk should refer to the unified job here
-                # TODO: what if user runs command with project pk?
                 result = client.get(
-                    '%s%s' % (self.unified_job_type, pk)).json()
+                    '%s%s' % (self.unified_job_type, job_pk)).json()
                 last_poll = time.time()
                 interval = min(interval * 1.5, max_interval)
 
@@ -1088,12 +1093,12 @@ class MonitorableResource(ResourceMethods):
         # Return the job ID and other response data
         answer = OrderedDict((
             ('changed', True),
-            ('id', pk),
+            ('id', job_pk),
         ))
         answer.update(result)
         # Make sure to return ID of resource and not update number
         # relevant for project creation and update
-        answer['id'] = pk
+        answer['id'] = job_pk
         return answer
 
 
