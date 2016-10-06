@@ -932,7 +932,7 @@ class MonitorableResource(ResourceMethods):
         # Loop initialization
         start = time.time()
         start_line = 0
-        result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+        result = client.get('%s%s/' % (self.unified_job_type, pk)).json()
 
         click.echo('\033[0;91m------Starting Standard Out Stream------\033[0m',
                    nl=False, file=outfile)
@@ -968,7 +968,7 @@ class MonitorableResource(ResourceMethods):
                 click.echo(content, nl=0)
 
             result = client.get(
-                '%s%s' % (self.unified_job_type, pk)).json()
+                '%s%s/' % (self.unified_job_type, pk)).json()
 
         click.echo('\033[0;91m------End of Standard Out Stream--------\033[0m',
                    nl=2, file=outfile)

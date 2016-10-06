@@ -429,7 +429,7 @@ class MonitorWaitTests(unittest.TestCase):
     def test_already_successful_monitor(self):
         """Pass-through sucessful job with monitor method"""
         with client.test_mode as t:
-            t.register_json('/jobs/42', {
+            t.register_json('/jobs/42/', {
                 'elapsed': 1335024000.0,
                 'failed': False,
                 'status': 'successful',
@@ -525,12 +525,12 @@ class MonitorWaitTests(unittest.TestCase):
 
         # Register the initial request's response.
         with client.test_mode as t:
-            t.register_json('/jobs/42', copy(data))
+            t.register_json('/jobs/42/', copy(data))
 
             # Create a way to assign a successful data object to the request.
             def assign_success(*args):
                 t.clear()
-                t.register_json('/jobs/42', dict(data, status='successful'))
+                t.register_json('/jobs/42/', dict(data, status='successful'))
 
             # Make the successful state assignment occur when time.sleep()
             # is called between requests.
