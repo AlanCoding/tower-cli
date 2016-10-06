@@ -100,10 +100,9 @@ class Resource(models.Resource, models.MonitorableResource):
 
         # if the monitor flag is set, wait for the SCM to update
         if monitor and answer.get('changed', False):
-            # TODO: project update id not available, code around this
-            return self.monitor(project_id, timeout=timeout)
+            return self.monitor(pk=None, parent_pk=project_id, timeout=timeout)
         elif wait and answer.get('changed', False):
-            return self.wait(project_id, timeout=timeout)
+            return self.wait(pk=None, parent_pk=project_id, timeout=timeout)
 
         return answer
 

@@ -1021,7 +1021,7 @@ class MonitorableResource(ResourceMethods):
         # and run in Python.  This seems fine; outfile can be set to /dev/null
         # and very much the normal use for this method should be CLI
         # monitoring.
-        result = client.get('%s%s' % (self.unified_job_type, pk)).json()
+        result = client.get('%s%s/' % (self.unified_job_type, pk)).json()
         # result = self.status(pk, detail=True)
         last_poll = time.time()
         timeout_check = 0
@@ -1075,7 +1075,7 @@ class MonitorableResource(ResourceMethods):
             # time hits, we do the status check as part of the normal cycle.
             if time.time() - last_poll > interval:
                 result = client.get(
-                    '%s%s' % (self.unified_job_type, pk)).json()
+                    '%s%s/' % (self.unified_job_type, pk)).json()
                 last_poll = time.time()
                 interval = min(interval * 1.5, max_interval)
 
