@@ -424,7 +424,23 @@ class MonitorWaitTests(unittest.TestCase):
             with mock.patch.object(time, 'sleep') as sleep:
                 result = self.res.wait(42)
                 self.assertEqual(sleep.call_count, 0)
-        self.assertEqual(result['status'], 'successful')
+                self.assertEqual(result['status'], 'successful')
+
+    def test_already_successful_monitor(self):
+        """Pass-through sucessful job with monitor method"""
+        with client.test_mode as t:
+            t.register_json('/jobs/42', {
+                'elapsed': 1335024000.0,
+                'failed': False,
+                'status': 'successful',
+            })
+            # Test same for monitor
+            with mock.patch.object(time, 'sleep') as sleep:
+                with mock.patch.object(type(self.res), 'wait'):
+                    with mock.patch.object(click, 'echo'):
+                        result = self.res.monitor(42)
+                        self.assertEqual(sleep.call_count, 0)
+                        self.assertEqual(result['status'], 'successful')
 
     def test_failure(self):
         """Establish that if the job has failed, that we raise the
@@ -441,6 +457,13 @@ class MonitorWaitTests(unittest.TestCase):
                     with mock.patch('tower_cli.models.base.is_tty') as tty:
                         tty.return_value = True
                         self.res.wait(42)
+                self.assertTrue(secho.call_count >= 1)
+            # Test the same with the monitor method
+            with self.assertRaises(exc.JobFailure):
+                with mock.patch.object(click, 'secho') as secho:
+                    with mock.patch('tower_cli.models.base.is_tty') as tty:
+                        tty.return_value = True
+                        self.res.monitor(42)
                 self.assertTrue(secho.call_count >= 1)
 
     def test_failure_non_tty(self):
@@ -487,6 +510,37 @@ class MonitorWaitTests(unittest.TestCase):
                         tty.return_value = True
                         self.res.wait(42, min_interval=0.21)
                 self.assertTrue(secho.call_count >= 100)
+
+            # We should have gotten two requests total, to the same URL.
+            self.assertEqual(len(t.requests), 2)
+            self.assertEqual(t.requests[0].url, t.requests[1].url)
+
+    def test_monitor(self):
+        """Establish that if the first status call returns a pending job,
+        and the second a success, that both calls are made, and a success
+        finally returned.
+        """
+        # Set up our data object.
+        data = {'elapsed': 1335024000.0, 'failed': False, 'status': 'pending'}
+
+        # Register the initial request's response.
+        with client.test_mode as t:
+            t.register_json('/jobs/42', copy(data))
+
+            # Create a way to assign a successful data object to the request.
+            def assign_success(*args):
+                t.clear()
+                t.register_json('/jobs/42', dict(data, status='successful'))
+
+            # Make the successful state assignment occur when time.sleep()
+            # is called between requests.
+            with mock.patch.object(time, 'sleep') as sleep:
+                sleep.side_effect = assign_success
+                with mock.patch.object(click, 'echo'):
+                    with mock.patch.object(type(self.res), 'wait'):
+                        with mock.patch.object(
+                                type(self.res), 'lookup_stdout'):
+                            self.res.monitor(42, min_interval=0.21)
 
             # We should have gotten two requests total, to the same URL.
             self.assertEqual(len(t.requests), 2)

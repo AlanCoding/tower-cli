@@ -934,9 +934,10 @@ class MonitorableResource(ResourceMethods):
         start_line = 0
         result = client.get('%s%s' % (self.unified_job_type, pk)).json()
 
-        secho('\r------Starting Standard Out Stream------',
-              nl=False, file=outfile, fg='blue')
-        secho(' ', nl=2, file=outfile)
+        click.echo('\033[0;91m------Starting Standard Out Stream------\033[0m',
+                   nl=False, file=outfile)
+
+        click.echo(' ', nl=2, file=outfile)
 
         # Poll the Ansible Tower instance for status, and print
         # standard out to the out file
@@ -959,19 +960,19 @@ class MonitorableResource(ResourceMethods):
             if not content.startswith("Waiting for results"):
                 line_count = content.count('\n')
                 start_line += line_count
-                # Special de-duplication case for start of stream
-                if line_count == 0 and start_line == 0:
+                # Special de-duplication case for start of job stream
+                if (line_count == 0 and start_line == 0 and
+                        content.startswith("SSH password:")):
                     line_count = 1
-                    content = content + '\n'
+                    content = ''
                 click.echo(content, nl=0)
 
             result = client.get(
                 '%s%s' % (self.unified_job_type, pk)).json()
 
-        secho('------End of Standard Out Stream------', nl=2,
-              file=outfile, fg='blue')
+        click.echo('\033[0;91m------End of Standard Out Stream--------\033[0m',
+                   nl=2, file=outfile)
 
-        # TODO: re-evaluate the returned data for UJT/UJ split
         # Return the job ID and other response data
         answer = OrderedDict((
             ('changed', True),
