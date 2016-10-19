@@ -35,15 +35,31 @@ class Resource(models.Resource):
     @resources.command(use_fields_as_options=False)
     @click.option('--host', type=types.Related('host'))
     @click.option('--group', type=types.Related('group'))
-    def associate(self, host, group):
+    @click.option('--host-name', type=types.Related('host',
+                  convert_digits=False))
+    @click.option('--group-name', type=types.Related('group',
+                  convert_digits=False))
+    def associate(self, host, group, host_name, group_name):
         """Associate a group with this host."""
+        if host_name and not host:
+            host = host_name
+        if group_name and not group:
+            group = group_name
         return self._assoc('groups', host, group)
 
     @resources.command(use_fields_as_options=False)
     @click.option('--host', type=types.Related('host'))
     @click.option('--group', type=types.Related('group'))
-    def disassociate(self, host, group):
+    @click.option('--host-name', type=types.Related('host',
+                  convert_digits=False))
+    @click.option('--group-name', type=types.Related('group',
+                  convert_digits=False))
+    def disassociate(self, host, group, host_name, group_name):
         """Disassociate a group from this host."""
+        if host_name and not host:
+            host = host_name
+        if group_name and not group:
+            group = group_name
         return self._disassoc('groups', host, group)
 
     @resources.command(ignore_defaults=True, no_args_is_help=False)
