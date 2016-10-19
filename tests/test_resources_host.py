@@ -36,7 +36,7 @@ class HostTests(unittest.TestCase):
             t.register_json('/hosts/42/groups/?id=84',
                             {'count': 0, 'results': []})
             t.register_json('/hosts/42/groups/', {}, method='POST')
-            self.host_resource.associate(42, 84)
+            self.host_resource.associate(42, 84, None, None)
             self.assertEqual(t.requests[1].body,
                              json.dumps({'associate': True, 'id': 84}))
 
@@ -49,7 +49,7 @@ class HostTests(unittest.TestCase):
                             {'count': 1, 'results': [{'id': 84}],
                              'next': None, 'previous': None})
             t.register_json('/hosts/42/groups/', {}, method='POST')
-            self.host_resource.disassociate(42, 84)
+            self.host_resource.disassociate(42, 84, None, None)
             self.assertEqual(t.requests[1].body,
                              json.dumps({'disassociate': True, 'id': 84}))
 
