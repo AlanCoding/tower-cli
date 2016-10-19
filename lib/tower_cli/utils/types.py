@@ -93,9 +93,10 @@ class Related(click.types.ParamType):
     __name__ = 'related'
     name = 'related'
 
-    def __init__(self, resource_name):
+    def __init__(self, resource_name, convert_digits=True):
         super(Related, self).__init__()
         self.resource_name = resource_name
+        self.convert_digits = convert_digits
 
     def convert(self, value, param, ctx):
         """Return the appropriate interger value. If a non-integer is
@@ -115,7 +116,7 @@ class Related(click.types.ParamType):
 
         # Do we have a string that contains only digits?
         # If so, then convert it to an integer and return it.
-        if re.match(r'^[\d]+$', value):
+        if re.match(r'^[\d]+$', value) and self.convert_digits:
             return int(value)
 
         # Special case to allow disassociations
