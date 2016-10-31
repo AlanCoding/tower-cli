@@ -31,6 +31,8 @@ class Resource(models.Resource):
     variables = models.Field(
         type=types.Variables(), required=False, display=False,
         help_text='Host variables, use "@" to get from file.')
+    group = models.Field(
+        type=types.ManyRelated('group', relationship='groups'))
 
     @resources.command(use_fields_as_options=False)
     @click.option('--host', type=types.Related('host'))

@@ -149,3 +149,13 @@ class Related(click.types.ParamType):
 
     def get_metavar(self, param):
         return self.resource_name.upper()
+
+class ManyRelated(object):
+    """Dummy class to signify other methods to include attach/detach
+    methods"""
+    def __init__(self, resource_name, relationship=None):
+        self.resource_name = resource_name
+        if relationship:
+            self.relationship = relationship
+        else:
+            self.relationship = '%ss' % resource_name

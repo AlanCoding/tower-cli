@@ -56,6 +56,9 @@ class ResourceMeta(type):
             base_commands = getattr(base, 'commands', [])
             commands = commands.union(base_commands)
 
+        # Attach and detach commands added to resource and list
+        # TODO
+
         # Read list of deprecated resource methods if present.
         deprecates = attrs.pop('deprecated_methods', [])
 
