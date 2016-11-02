@@ -858,11 +858,15 @@ class MonitorableResource(ResourceMethods):
         else:
             raise exc.NotFound('No related jobs or updates exist.')
 
-    def lookup_stdout(self, pk=None, start_line=None, end_line=None):
+    def lookup_stdout(self, pk=None, start_line=None, end_line=None,
+                      use_events=False):
         """
         Internal utility function to return standard out
         requires the pk of a unified job
         """
+        if use_events:
+            return self.lookup_event_stdout(pk=pk, start_line=start_line,
+                                            end_line=end_line)
         stdout_url = '%s%d/stdout/' % (self.unified_job_type, pk)
         payload = {
             'format': 'json', 'content_encoding': 'base64',
@@ -872,6 +876,21 @@ class MonitorableResource(ResourceMethods):
         if end_line:
             payload['end_line'] = end_line
         debug.log('Requesting a copy of job standard output', header='details')
+        resp = client.get(stdout_url, params=payload).json()
+        content = b64decode(resp['content'])
+
+        return content
+
+    def lookup_event_stdout(self, pk=None, start_line=None, end_line=None):
+        """
+        Consumes a list of job events, building the implied standard out
+        from their combined standard out fields
+        """
+        events_url = (
+            '/job_events/?order_by=-id&job=%s&start_line__gte=%s'
+            '&end_line__lte=%s' % (pk, start_line, end_line))
+
+        debug.log('Requesting job_events for stdout range', header='details')
         resp = client.get(stdout_url, params=payload).json()
         content = b64decode(resp['content'])
 
@@ -932,6 +951,14 @@ class MonitorableResource(ResourceMethods):
         click.echo('\033[0;91m------Starting Standard Out Stream------\033[0m',
                    nl=2, file=outfile)
 
+        # if the job events show the standard out, use that
+        use_events = False
+        if self.unified_job_type.strip('/') == 'jobs':
+            job_event_options = client.options(
+                '/job_events/').json()['actions']['GET']
+            if 'stdout' in job_event_options:
+                use_events = True
+
         # Poll the Ansible Tower instance for status and content,
         # and print standard out to the out file
         while not result['failed'] and result['status'] != 'successful':
@@ -942,7 +969,7 @@ class MonitorableResource(ResourceMethods):
             time.sleep(interval)
 
             # Make request to get standard out
-            content = self.lookup_stdout(pk, start_line)
+            content = self.lookup_stdout(pk, start_line, use_events=use_events)
 
             # In the first moments of running the job, the standard out
             # may not be available yet
