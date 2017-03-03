@@ -23,6 +23,8 @@ import tower_cli
 from tower_cli.utils import debug, exceptions as exc
 from tower_cli.utils.compat import OrderedDict
 
+import json
+
 
 class File(click.File):
     """A subclass of click.File that adds `os.path.expanduser`."""
@@ -53,10 +55,32 @@ class Variables(click.File):
         # Read from a file under these cases
         if value.startswith('@'):
             filename = os.path.expanduser(value[1:])
-            return super(Variables, self).convert(filename, param, ctx)
+            file_obj = super(Variables, self).convert(filename, param, ctx)
+            if hasattr(file_obj, 'read'):
+                # Sometimes click.File may return a buffer and not a string
+                return file_obj.read()
+            return file_obj
 
         # No file, use given string
         return value
+
+
+class SettingValue(Variables):
+    """
+    Optionally reads from a file, and converts into a dict if possible.
+    """
+    name = 'setting'
+    __name__ = 'setting'
+
+    def convert(self, value, param, ctx):
+        string_value = super(SettingValue, self).convert(value, param, ctx)
+        try:
+            json_value = json.loads(string_value)
+        except:
+            return string_value
+        if not isinstance(json_value, dict):
+            return string_value
+        return json_value
 
 
 class MappedChoice(click.Choice):
