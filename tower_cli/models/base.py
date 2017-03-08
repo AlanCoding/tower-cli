@@ -36,7 +36,7 @@ from tower_cli import resources
 from tower_cli.api import client
 from tower_cli.conf import settings
 from tower_cli.models.fields import Field
-from tower_cli.utils import exceptions as exc, parser, debug, secho
+from tower_cli.utils import exceptions as exc, parser, debug, secho, types
 from tower_cli.utils.command import Command
 from tower_cli.utils.data_structures import OrderedDict
 from tower_cli.utils.decorators import command
@@ -248,6 +248,17 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
                             show_default=field.show_default,
                             multiple=field.multiple
                         )(new_method)
+
+                        # Apply special name aliases
+                        if isinstance(field.type, types.Related):
+                            click.option(
+                                *['{0}-name'.format(field.option)],
+                                default=None,
+                                help=field.help,
+                                type=six.text_type,
+                                show_default=field.show_default,
+                                multiple=False
+                            )(new_method)
 
                 # Make a click Command instance using this method
                 # as the callback, and return it.
