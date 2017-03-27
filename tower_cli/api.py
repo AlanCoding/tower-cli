@@ -92,6 +92,9 @@ class Client(Session):
         # If this is a JSON request, encode the data value.
         if headers.get('Content-Type', '') == 'application/json':
             kwargs['data'] = json.dumps(kwargs.get('data', {}))
+            # Special case force conversion of None to {} for compatibility
+            if method == 'POST' and kwargs['data'] in [None, 'null']:
+                kwargs['data'] = {}
 
         # Decide whether to require SSL verification
         verify_ssl = True
