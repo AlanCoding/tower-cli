@@ -25,13 +25,6 @@ class Resource(models.Resource):
     name = models.Field(unique=True)
     description = models.Field(required=False, display=False)
     organization = models.Field(type=types.Related('organization'))
-    scm_project = models.Field(
-        type=types.Related('project'),
-        help_text='Use project files as source for inventory.',
-        required=False, display=False)
-    scm_file = models.Field(
-        required=False, display=False,
-        help_text='File in SCM Project to use as source.')
     variables = models.Field(
         type=types.Variables(), required=False, display=False,
         help_text='Inventory variables, use "@" to get from file.')

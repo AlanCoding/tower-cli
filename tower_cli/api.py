@@ -57,7 +57,7 @@ class Client(Session):
                 'Can not verify ssl with non-https protocol. Change the '
                 'verify_ssl configuration setting to continue.'
             )
-        return '%s/api/v1/' % host.rstrip('/')
+        return '%s/api/v2/' % host.rstrip('/')
 
     @functools.wraps(Session.request)
     def request(self, method, url, *args, **kwargs):

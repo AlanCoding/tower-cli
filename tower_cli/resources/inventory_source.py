@@ -20,19 +20,30 @@ from tower_cli.api import client
 from tower_cli.utils import debug, types, exceptions as exc
 
 
-class Resource(models.MonitorableResource):
+class Resource(models.Resource, models.MonitorableResource):
     cli_help = 'Manage inventory sources within Ansible Tower.'
     endpoint = '/inventory_sources/'
-    internal = True
     unified_job_type = '/inventory_updates/'
+    identity = ('inventory', 'name')
 
-    credential = models.Field(type=types.Related('credential'), required=False)
+    name = models.Field()
+    credential = models.Field(
+        type=types.Related('credential'), required=False, display=True)
     source = models.Field(
-        default=None,
+        default=None, display=True,
         help_text='The type of inventory source in use.',
         type=click.Choice(['', 'file', 'ec2', 'rax', 'vmware',
                            'gce', 'azure', 'azure_rm', 'openstack',
-                           'satellite6', 'cloudforms', 'custom']),
+                           'satellite6', 'cloudforms', 'custom', 'scm']),
+    )
+    verbosity = models.Field(
+        display=False,
+        type=types.MappedChoice([
+            (0, 'WARNING'),
+            (1, 'INFO'),
+            (2, 'DEBUG'),
+        ]),
+        required=False,
     )
     source_regions = models.Field(required=False, display=False)
     # Variables not shared by all cloud providers
@@ -40,7 +51,7 @@ class Resource(models.MonitorableResource):
     instance_filters = models.Field(required=False, display=False)
     group_by = models.Field(required=False, display=False)
     source_script = models.Field(type=types.Related('inventory_script'),
-                                 required=False)
+                                 required=False, display=False)
     # Boolean variables
     overwrite = models.Field(type=bool, required=False, display=False)
     overwrite_vars = models.Field(type=bool, required=False, display=False)
@@ -50,8 +61,38 @@ class Resource(models.MonitorableResource):
                                         display=False)
     timeout = models.Field(type=int, required=False, display=False,
                            help_text='The timeout field (in seconds).')
+    inventory = models.Field(
+        type=types.Related('inventory'),
+        required=False, display=True)
+    source_project = models.Field(
+        type=types.Related('project'),
+        help_text='Use project files as source for inventory.',
+        required=False, display=False)
+    source_path = models.Field(
+        required=False, display=False,
+        help_text='File in SCM Project to use as source.')
+    update_on_project_update = models.Field(
+        type=bool, required=False, display=False)
 
-    @click.argument('inventory_source', type=types.Related('inventory_source'))
+    @resources.command
+    @click.option('--fail-on-found', default=False,
+                  show_default=True, type=bool, is_flag=True,
+                  help='If used, return an error if a matching record already '
+                       'exists.')
+    @click.option('--force-on-exists', default=False,
+                  show_default=True, type=bool, is_flag=True,
+                  help='If used, if a match is found on unique fields, other '
+                       'fields will be updated to the provided values. If '
+                       'False, a match causes the request to be a no-op.')
+    def create(self, **kwargs):
+        """Create an object.
+
+        Fields in the resource's `identity` tuple are used for a lookup;
+        if a match is found, then no-op (unless `force_on_exists` is set) but
+        do not fail (unless `fail_on_found` is set).
+        """
+        return self.write(create_on_missing=True, **kwargs)
+
     @click.option('--monitor', is_flag=True, default=False,
                   help='If sent, immediately calls `monitor` on the newly '
                        'launched job rather than exiting with a success.')
@@ -61,10 +102,15 @@ class Resource(models.MonitorableResource):
                   help='If provided with --monitor, this command (not the job)'
                        ' will time out after the given number of seconds. '
                        'Does nothing if --monitor is not sent.')
-    @resources.command(use_fields_as_options=False, no_args_is_help=True)
-    def update(self, inventory_source, monitor=False, wait=False,
+    @resources.command(no_args_is_help=True)
+    def update(self, pk, monitor=False, wait=False,
                timeout=None, **kwargs):
         """Update the given inventory source."""
+
+        if pk:
+            inventory_source = pk
+        else:
+            inventory_source = self.get(**kwargs)['id']
 
         # Establish that we are able to update this inventory source
         # at all.
@@ -77,7 +123,8 @@ class Resource(models.MonitorableResource):
 
         # Run the update.
         debug.log('Updating the inventory source.', header='details')
-        r = client.post('%s%d/update/' % (self.endpoint, inventory_source))
+        r = client.post('%s%d/update/' % (self.endpoint, inventory_source),
+                        data={})
 
         # If we were told to monitor the project update's status, do so.
         if monitor or wait:
