@@ -25,6 +25,17 @@ class Resource(models.Resource):
     name = models.Field(unique=True)
     description = models.Field(required=False, display=False)
     organization = models.Field(type=types.Related('organization'))
+    kind = models.Field(
+        required=False, display=False,
+        help_text='The type of inventory.',
+        type=types.MappedChoice([
+            ('', 'Regular'),
+            ('smart', 'Smart'),
+        ]),
+    )
+    host_filter = models.Field(
+        required=False, display=False,
+        help_text='Filter to use for smart inventories.')
     variables = models.Field(
         type=types.Variables(), required=False, display=False,
         help_text='Inventory variables, use "@" to get from file.')

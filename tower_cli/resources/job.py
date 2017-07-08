@@ -47,6 +47,7 @@ class Resource(models.ExeResource):
     )
     job_explanation = models.Field(required=False, display=False)
     created = models.Field(required=False, display=True)
+    finished = models.Field(required=False, display=False)
     status = models.Field(required=False, display=True)
     elapsed = models.Field(required=False, display=True)
 
@@ -74,6 +75,8 @@ class Resource(models.ExeResource):
                   help='Specify tagged actions in the playbook to run.')
     @click.option('--skip-tags', required=False,
                   help='Specify tagged actions in the playbook to ommit.')
+    @click.option('--diff-mode', required=False,
+                  help='Run the playbook with Ansible diff mode.')
     @click.option('--job-type', required=False, type=click.Choice(['run',
                   'check', 'scan']), help='Specify job type for job template'
                   ' to run.')

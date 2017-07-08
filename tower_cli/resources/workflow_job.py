@@ -31,11 +31,15 @@ class Resource(models.ExeResource):
         type=types.Related('workflow'),
         display=True
     )
+    description = models.Field(required=False, display=False)
     extra_vars = models.Field(
         type=types.Variables(), required=False, display=False,
         multiple=True
     )
+    organization = models.Field(type=types.Related('organization'),
+                                required=False)
     created = models.Field(required=False, display=True)
+    finished = models.Field(required=False, display=False)
     status = models.Field(required=False, display=True)
 
     def __getattribute__(self, attr):

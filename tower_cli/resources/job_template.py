@@ -62,6 +62,9 @@ class Resource(models.SurveyResource):
     )
     job_tags = models.Field(required=False, display=False)
     skip_tags = models.Field(required=False, display=False)
+    diff_mode = models.Field(
+        type=bool, required=False, display=False,
+        help_text='Use Ansible diff mode.')
     extra_vars = models.Field(
         type=types.Variables(), required=False, display=False, multiple=True,
         help_text='Extra variables used by Ansible in YAML or key=value '
@@ -90,6 +93,15 @@ class Resource(models.SurveyResource):
     ask_credential_on_launch = models.Field(
         type=bool, required=False, display=False,
         help_text='Prompt user for machine credential on launch.')
+    ask_verbosity_on_launch = models.Field(
+        type=bool, required=False, display=False,
+        help_text='Prompt user for verbosity on launch.')
+    ask_diff_mode_on_launch = models.Field(
+        type=bool, required=False, display=False,
+        help_text='Prompt user for diff mode on launch.')
+    use_fact_cache = models.Field(
+        type=bool, required=False, display=False,
+        help_text='Use Fact Cache Plugin to store facts.')
     become_enabled = models.Field(type=bool, required=False, display=False)
     allow_simultaneous = models.Field(type=bool, required=False, display=False)
     timeout = models.Field(type=int, required=False, display=False,

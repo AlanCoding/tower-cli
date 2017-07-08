@@ -36,15 +36,30 @@ class Resource(models.MonitorableResource):
         help_text='The type of inventory source in use.',
         type=click.Choice(['', 'file', 'ec2', 'rax', 'vmware',
                            'gce', 'azure', 'azure_rm', 'openstack',
-                           'satellite6', 'cloudforms', 'custom']),
+                           'satellite6', 'cloudforms', 'custom',
+                           'scm']),
     )
     source_regions = models.Field(required=False, display=False)
+    verbosity = models.Field(
+        display=False,
+        type=types.MappedChoice([
+            (0, 'WARNING'),
+            (1, 'INFO'),
+            (2, 'DEBUG'),
+        ]),
+        required=False,
+    )
     # Variables not shared by all cloud providers
     source_vars = models.Field(required=False, display=False)
     instance_filters = models.Field(required=False, display=False)
     group_by = models.Field(required=False, display=False)
     source_script = models.Field(type=types.Related('inventory_script'),
                                  required=False, display=False)
+    source_project = models.Field(type=types.Related('project'),
+                                  required=False, display=False)
+    update_on_project_update = models.Field(
+        type=bool, required=False, display=False,
+        help_text='Automatically update when source project updates.')
     # Boolean variables
     overwrite = models.Field(type=bool, required=False, display=False)
     overwrite_vars = models.Field(type=bool, required=False, display=False)

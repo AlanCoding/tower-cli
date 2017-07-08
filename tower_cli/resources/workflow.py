@@ -164,6 +164,7 @@ class Resource(models.SurveyResource):
                   'multiple times to add multiple extra variables')
     organization = models.Field(type=types.Related('organization'),
                                 required=False)
+    allow_simultaneous = models.Field(type=bool, required=False, display=False)
     survey_enabled = models.Field(
         type=bool, required=False, display=False,
         help_text='Prompt user for job type on launch.')
