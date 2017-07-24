@@ -126,10 +126,7 @@ setup(
     # How to do the install
     install_requires=parse_requirements('requirements.txt'),
     provides=[
-        'tower_cli',
-    ],
-    scripts=[
-        'bin/tower-cli',
+        'tower_cli_v1',
     ],
     packages=find_packages(exclude=['tests']),
     # How to do the tests
@@ -139,6 +136,12 @@ setup(
     # Data files
     package_data={
         'tower_cli': ['VERSION'],
+    },
+
+    # CLI entry points
+    entry_points = {
+        'console_scripts': ['tower-cli=tower_cli.cli.entry:cli',
+                            'tower-cli-v1=tower_cli.cli.entry:cli'],
     },
 
     # PyPI metadata.
