@@ -421,7 +421,8 @@ class SchemaTests(unittest.TestCase):
     def test_schema_update(self):
         node_res_mock = NodeResMock(CUR_WORKFLOW)
         with mock.patch('tower_cli.resources.workflow.get_resource', return_value=node_res_mock):
-            res = self._remove_ids(self.res.schema(1, node_network=json.dumps(UPDATED_WORKFLOW)))
+            schema = self.res.schema(1, node_network=json.dumps(UPDATED_WORKFLOW))['schema']
+            res = self._remove_ids(schema)
             self.assertEqual(res, UPDATED_RESULT)
             self.assertEqual(node_res_mock.create_cnt, 6)
             self.assertEqual(node_res_mock.delete_cnt, 7)

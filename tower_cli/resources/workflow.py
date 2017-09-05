@@ -28,6 +28,7 @@ from collections import deque
 
 class TreeNode(object):
     def __init__(self, data, wfjt, include_id=False):
+        self.changed = False
         ujt_attrs = list(JOB_TYPES.values())
         FK_FIELDS = ujt_attrs + ['inventory', 'credential']
         node_attrs = {}
@@ -64,24 +65,35 @@ class TreeNode(object):
             )
 
     def create(self, node_res):
-        self.node_attrs['id'] = node_res.create(**self.node_attrs)['id']
+        data = node_res.create(**self.node_attrs)
+        if data.get('changed', False):
+            self.changed = True
+        self.node_attrs['id'] = data['id']
         queue = deque()
         queue.append(self)
         while queue:
             node = queue.popleft()
             for rel in ['success_nodes', 'failure_nodes', 'always_nodes']:
                 for sub_node in getattr(node, rel, []):
-                    sub_node.node_attrs['id'] = node_res.create(**sub_node.node_attrs)['id']
-                    getattr(node_res, 'associate_%s' % rel[:-1])(
+                    create_data = node_res.create(**sub_node.node_attrs)
+                    sub_node.node_attrs['id'] = create_data['id']
+                    assoc_data = getattr(node_res, 'associate_%s' % rel[:-1])(
                         node.node_attrs['id'], child=sub_node.node_attrs['id']
                     )
+                    if ((assoc_data and assoc_data.get('changed', False)) or
+                            (create_data and create_data.get('changed', False))):
+                        self.changed = True
                     queue.append(sub_node)
 
     def delete(self, node_res):
         for rel in ['success_nodes', 'failure_nodes', 'always_nodes']:
             for sub_node in getattr(self, rel, []):
-                sub_node.delete(node_res)
-        node_res.delete(pk=self.node_attrs['id'])
+                data = sub_node.delete(node_res)
+                if data and data.get('changed', False):
+                    self.changed = True
+        data = node_res.delete(pk=self.node_attrs['id'])
+        if data and data.get('changed', False):
+            self.changed = True
 
 
 def _compare_node_lists(old, new):
@@ -131,23 +143,37 @@ def _compare_node_lists(old, new):
 
 
 def _do_update_workflow(existing_roots, updated_roots, node_res):
+    changed = False
     to_expand, to_delete, to_recurse = _compare_node_lists(existing_roots, updated_roots)
     for node in to_delete:
         node.delete(node_res)
+        if node.changed:
+            changed = True
     for node in to_expand:
         node.create(node_res)
+        if node.changed:
+            changed = True
     for old_node, new_node in to_recurse:
         for rel in ['success_nodes', 'failure_nodes', 'always_nodes']:
-            to_assoc = _do_update_workflow(getattr(old_node, rel, []), getattr(new_node, rel, []), node_res)
+            to_assoc, sub_changed = _do_update_workflow(
+                getattr(old_node, rel, []), getattr(new_node, rel, []), node_res
+            )
+            if sub_changed:
+                changed = True
             for sub_node in to_assoc:
-                getattr(node_res, 'associate_%s' % rel[:-1])(old_node.node_attrs['id'], child=sub_node.node_attrs['id'])
-    return to_expand
+                data = getattr(node_res, 'associate_%s' % rel[:-1])(
+                    old_node.node_attrs['id'], child=sub_node.node_attrs['id']
+                )
+                if data and data.get('changed', False):
+                    changed = True
+    return to_expand, changed
 
 
 def _update_workflow(existing_roots, updated_roots):
     # Node resource should be fetched *only once*.
     node_res = get_resource('node')
-    _do_update_workflow(existing_roots, updated_roots, node_res)
+    _, changed = _do_update_workflow(existing_roots, updated_roots, node_res)
+    return changed
 
 
 class Resource(models.SurveyResource):
@@ -281,17 +307,20 @@ class Resource(models.SurveyResource):
 
         if hasattr(node_network, 'read'):
             node_network = node_network.read()
-        node_network = string_to_dict(
-            node_network, allow_kv=False, require_dict=False)
+        node_network = string_to_dict(node_network, allow_kv=False, require_dict=False)
         if not isinstance(node_network, list):
             node_network = []
 
-        _update_workflow([TreeNode(x, wfjt, include_id=True) for x in existing_network],
-                         [TreeNode(x, wfjt) for x in node_network])
+        changed = _update_workflow(
+            [TreeNode(x, wfjt, include_id=True) for x in existing_network],
+            [TreeNode(x, wfjt) for x in node_network])
 
         if settings.format == 'human':
             settings.format = 'yaml'
-        return self._get_schema(wfjt)
+        data = {}
+        data['schema'] = self._get_schema(wfjt)
+        data['changed'] = changed
+        return data
 
     @resources.command(use_fields_as_options=False)
     @click.option('--workflow', type=types.Related('workflow'))

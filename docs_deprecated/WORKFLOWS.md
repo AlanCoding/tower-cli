@@ -111,6 +111,28 @@ network with a tower-cli command after the constituent resources like
 the job templates and projects were created by preceding
 tower-cli commands.
 
+If you want to bootstrap the resources in order to use the above schema,
+this script should accomplish the setup:
+
+```bash
+tower-cli organization create --name="Default"
+
+tower-cli project create --name="Hello world" --organization "Default" --scm-type git --scm-url https://github.com/AlanCoding/permission-testing-playbooks.git --wait
+tower-cli inventory create --name="localhost" --variables='{"ansible_ssh_host": "127.0.0.1",
+"ansible_connection": "local"}' --organization=Default
+tower-cli credential create --name "nonfunctional" --kind "ssh" --username "foobar" --password "barfoo" --organization "Default"
+tower-cli job_template create --name="Hello world" --inventory="localhost" --machine-credential="nonfunctional" --project="Hello world" --playbook="debug.yml"
+tower-cli job_template create --name="Echo variable" --inventory="localhost" --machine-credential="nonfunctional" --project="Hello world" --playbook="debug.yml"
+tower-cli job_template create --name="Scan localhost" --inventory="localhost" --machine-credential="nonfunctional" --project="Hello world" --playbook="debug.yml"
+
+tower-cli inventory create --name="AWS servers" --variables='{"ansible_ssh_host": "127.0.0.1",
+"ansible_connection": "local"}' --organization=Default
+tower-cli credential create --name="AWS nonfunctional" --organization="Default" --kind="aws" --username="foobar" --password="barfoo"
+tower-cli group create --name="AWS servers" --inventory="AWS servers" --credential="AWS nonfunctional" --source="ec2"
+
+tower-cli project create --name="Ansible Examples" --organization "Default" --scm-type git --scm-url https://github.com/ansible/ansible-examples.git
+```
+
 ### Differences with Machine Formatted Schemas
 
 After writing a workflow schema, you may notice differences

@@ -96,9 +96,12 @@ class Resource(models.Resource):
             fail_on_no_results=False, fail_on_multiple_results=False, **kwargs)
         if len(response['results']) == 0:
             debug.log('Creating new workflow node.', header='details')
-            return client.post(self.endpoint, data=kwargs).json()
+            data = client.post(self.endpoint, data=kwargs).json()
+            data['changed'] = True
         else:
-            return response['results'][0]
+            data = response['results'][0]
+            data['changed'] = False
+        return data
 
     def _assoc_or_create(self, relationship, parent, child, **kwargs):
         if child is None:
