@@ -109,6 +109,9 @@ class ResourceMeta(type):
         for k, v in attrs.items():
             if isinstance(v, Field):
                 v.name = k
+                # Special key to avoid conflicts with function names
+                if k.startswith('_deferred_'):
+                    v.name = k[len('_deferred'):]
                 fields.append(v)
                 if v.unique:
                     unique_fields.add(v.name)

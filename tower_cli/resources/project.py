@@ -38,10 +38,11 @@ class Resource(models.Resource, models.MonitorableResource):
             ('svn', 'svn'),
         ]),
     )
-    scm_url = models.Field(required=False)
+    _deferred_status = models.Field(required=False, display=True)
+    scm_url = models.Field(required=False, display=False)
     local_path = models.Field(
         help_text='For manual projects, the server playbook directory name',
-        required=False)
+        required=False, display=False)
     scm_branch = models.Field(required=False, display=False)
     scm_credential = models.Field(
         'credential', display=False, required=False,
