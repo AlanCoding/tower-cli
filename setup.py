@@ -141,7 +141,7 @@ setup(
 
     # Data files
     package_data={
-        pkg_name: ['VERSION'],
+        pkg_name: ['VERSION', 'API_VERSION'],
     },
 
     # PyPI metadata.

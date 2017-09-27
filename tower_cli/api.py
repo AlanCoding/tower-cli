@@ -27,7 +27,7 @@ from requests.models import Response
 from requests.packages import urllib3
 from requests.auth import AuthBase
 
-from tower_cli import exceptions as exc
+from tower_cli import exceptions as exc, __api_version__
 from tower_cli.conf import settings
 from tower_cli.utils import data_structures, debug, secho
 
@@ -146,7 +146,7 @@ class Client(Session):
                 'Can not verify ssl with non-https protocol. Change the '
                 'verify_ssl configuration setting to continue.'
             )
-        return '%s/api/v1/' % host.rstrip('/')
+        return '%s/api/v%s/' % (host.rstrip('/'), __api_version__)
 
     @functools.wraps(Session.request)
     def request(self, method, url, *args, **kwargs):
