@@ -19,7 +19,7 @@ from distutils.version import LooseVersion
 
 import click
 
-from tower_cli import models, get_resource, resources
+from tower_cli import models, get_resource, resources, exceptions as exc
 from tower_cli.api import client
 from tower_cli.cli import types
 from tower_cli.utils import debug, parser
@@ -74,8 +74,12 @@ class Resource(models.ExeResource):
     @click.option('--verbosity', type=int, required=False, help='Specify verbosity of the playbook run.')
     @click.option('--inventory', required=False, type=types.Related('inventory'),
                   help='Specify inventory for job template to run.')
-    @click.option('--credential', required=False, type=types.Related('credential'),
-                  help='Specify machine credential for job template to run.')
+    @click.option('--credential', required=False, multiple=True, type=types.Related('credential'),
+                  help='Specify machine credential(s) for job template to run.')
+    @click.option('--vault-credential', required=False, type=types.Related('credential'),
+                  help='Specify vault credential for job template to run.')
+    @click.option('--cloud-credential', required=False, type=types.Related('credential'),
+                  help='Specify cloud credential for job template to run.')
     def launch(self, job_template=None, monitor=False, wait=False,
                timeout=None, no_input=True, extra_vars=None, **kwargs):
         """Launch a new job based on a job template.
@@ -125,16 +129,33 @@ class Resource(models.ExeResource):
         """
         # Get the job template from Ansible Tower.
         # This is used as the baseline for starting the job.
-
-        tags = kwargs.get('tags', None)
         jt_resource = get_resource('job_template')
         jt = jt_resource.get(job_template)
 
-        # Update the job data by adding an automatically-generated job name,
-        # and removing the ID.
+        # Update the job data for special treatment of certain fields
+        # Special case for job tags, historically just called --tags
+        tags = kwargs.get('tags', None)
         data = {}
         if tags:
             data['job_tags'] = tags
+        # Special case for cross-version compatibility with credentials
+        credentials = kwargs.pop('credential', ())
+        use_plural_credentials = False
+        for field in ('vault_credential', 'cloud_credential'):
+            cred = kwargs.pop(field, None)
+            if cred:
+                if 'credentials' not in jt['related']:
+                    raise exc.UsageError(
+                        'Providing {} on launch can only be done with server '
+                        'version 3.3 and higher.'
+                    )
+                use_plural_credentials = True
+                credentials += (cred,)
+        if use_plural_credentials or len(credentials) > 1:
+            # AWX and 3.3 call pattern
+            kwargs['credentials'] = list(credentials)
+        elif len(credentials) == 1:
+            kwargs['credential'] = credentials[0]
 
         # Initialize an extra_vars list that starts with the job template
         # preferences first, if they exist
