@@ -34,7 +34,7 @@ class Resource(models.Resource):
                              help_text='Host variables, use "@" to get from file.')
     insights_system_id = models.Field(required=False, display=False)
 
-    groups = models.ManyToManyField('group', method_name='')
+    groups = models.ManyToManyField('group', method_name='', shared_parent='inventory')
 
     @resources.command(ignore_defaults=True, no_args_is_help=False)
     @click.option('--group', type=types.Related('group'), help='List hosts that are children of this group.')

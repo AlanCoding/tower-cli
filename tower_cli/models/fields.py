@@ -125,7 +125,8 @@ class ManyToManyField(BaseField):
     :param method_name: The name CLI alias for the relationship in method names.
     """
     def __init__(self, other_name, res_name=None,
-                 relationship=None, method_name=None):
+                 relationship=None, method_name=None,
+                 shared_parent=None):
         # If not defined here, the following fields may be set by the
         # resource metaclass:
         # res_name - inferred from the endpoint of the resource
@@ -139,6 +140,7 @@ class ManyToManyField(BaseField):
         self.other_name = other_name
         self.res_name = res_name
         self.method_name = method_name
+        self.shared_parent = shared_parent
         self.relationship = relationship
         self.method_name = None
         self._set_method_names(method_name, relationship)
