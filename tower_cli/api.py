@@ -53,10 +53,18 @@ def local_request(method, url, **kwargs):
         logger.debug('You are using local connection, you need AWX installed.')
         raise
 
-    print (method, url, kwargs)
-    # content = kwargs['params']
-    data = kwargs['params']
+    if 'data' in kwargs:
+        data = kwargs['data']
+        if not isinstance(data, dict):
+            data = json.loads(data)
+    elif 'params' in kwargs:
+        data = kwargs['params']
+    else:
+        data = {}
+
     middleware = None
+    request_kwargs = {}
+    request_kwargs['data'] = data
     # headers = content['headers']
     # # passwords? who needs em
     user = User.objects.get(username=settings.username)
@@ -65,10 +73,10 @@ def local_request(method, url, **kwargs):
 
         # def rf(url, data_or_user=None, user=None, middleware=None, expect=None, **kwargs):
     if 'format' not in kwargs and 'content_type' not in kwargs:
-        kwargs['format'] = 'json'
+        request_kwargs['format'] = 'json'
 
     view, view_args, view_kwargs = resolve(urlparse(url)[2])
-    request = getattr(APIRequestFactory(), method.lower())(url, **kwargs)
+    request = getattr(APIRequestFactory(), method.lower())(url, **request_kwargs)
     if isinstance(kwargs.get('cookies', None), dict):
         for key, value in kwargs['cookies'].items():
             request.COOKIES[key] = value
