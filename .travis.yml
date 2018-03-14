@@ -13,10 +13,10 @@ matrix:
 install:
     - ./install_awx.sh
     - python install_awx_req.py
-    - pip install -r requirements_dev.txt
+    - pip install -r requirements_dev.txt -r requirements.txt
 script:
     - flake8 tower-cli/ tests/
-    - tox
+    - tox tests/
     - py.test tests_awx/
 after_success:
     coveralls
