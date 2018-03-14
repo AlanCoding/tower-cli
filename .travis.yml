@@ -10,9 +10,9 @@ python:
 matrix:
   allow_failures:
     - python: nightly
-before_install:
-  - ./install_awx.sh
 install:
+    - python install_awx_req.py
+    - ./install_awx.sh
     - pip install -r requirements_dev.txt
 script:
     - flake8 tower-cli/ tests/

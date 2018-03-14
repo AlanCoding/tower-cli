@@ -4,7 +4,6 @@ import pytest
 # Django
 from django.core.urlresolvers import resolve
 from django.utils.six.moves.urllib.parse import urlparse
-from django.contrib.auth.models import User
 
 from rest_framework.test import (
     APIRequestFactory,
