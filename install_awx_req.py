@@ -1,6 +1,6 @@
 from subprocess import call
 
-files = ['requirements.txt', 'requirements_dev.txt', 'requirements_git.txt']
+files = ['requirements.in', 'requirements_dev.txt', 'requirements_git.txt']
 
 
 seen = set([])
@@ -30,5 +30,5 @@ for file_name in files:
             failed.add(target)
 
 if failed:
-    print 'tower-cli AWX integration failed to install packages \n'
-    print ' - \n'.join(failed)
+    print('tower-cli AWX integration failed to install packages \n')
+    print(' - \n'.join(failed))
