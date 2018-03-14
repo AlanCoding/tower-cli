@@ -37,6 +37,63 @@ from tower_cli.constants import CUR_API_VERSION
 TOWER_DATETIME_FMT = r'%Y-%m-%dT%H:%M:%S.%fZ'
 
 
+def local_request(method, url, **kwargs):
+    try:
+        # Django
+        from django.core.urlresolvers import resolve
+        from django.utils.six.moves.urllib.parse import urlparse
+
+        from rest_framework.test import (
+            APIRequestFactory,
+            force_authenticate,
+        )
+        # test import
+        from awx.main.models import User
+    except ImportError:
+        logger.debug('You are using local connection, you need AWX installed.')
+        raise
+
+    print (method, url, kwargs)
+    # content = kwargs['params']
+    data = kwargs['params']
+    middleware = None
+    # headers = content['headers']
+    # # passwords? who needs em
+    user = User.objects.get(username=settings.username)
+    # if 'Content-Type' in headers:
+    #     kwargs['content_type'] = headers['Content-Type']
+
+        # def rf(url, data_or_user=None, user=None, middleware=None, expect=None, **kwargs):
+    if 'format' not in kwargs and 'content_type' not in kwargs:
+        kwargs['format'] = 'json'
+
+    view, view_args, view_kwargs = resolve(urlparse(url)[2])
+    request = getattr(APIRequestFactory(), method.lower())(url, **kwargs)
+    if isinstance(kwargs.get('cookies', None), dict):
+        for key, value in kwargs['cookies'].items():
+            request.COOKIES[key] = value
+    if middleware:
+        middleware.process_request(request)
+    if user:
+        force_authenticate(request, user=user)
+
+    response = view(request, *view_args, **view_kwargs)
+    if middleware:
+        middleware.process_response(request, response)
+    if hasattr(response, 'render'):
+        response.render()
+
+    # hacks specific to tower-cli
+    def make_json(self):
+        return self.data
+
+    import types
+    response.json = types.MethodType(make_json, response)
+
+    return response
+
+
+
 class BasicTowerAuth(AuthBase):
 
     def __init__(self, username, password, cli_client):
@@ -132,10 +189,15 @@ class Client(Session):
         # Call the superclass method.
         try:
             with warnings.catch_warnings():
-                warnings.simplefilter(
-                    "ignore", urllib3.exceptions.InsecureRequestWarning)
-                return super(Client, self).request(
-                    method, url, *args, verify=verify_ssl, **kwargs)
+                if settings.host == 'connection: local':
+                    return local_request(
+                        method, url, *args, **kwargs
+                    )
+                else:
+                    warnings.simplefilter(
+                        "ignore", urllib3.exceptions.InsecureRequestWarning)
+                    return super(Client, self).request(
+                        method, url, *args, verify=verify_ssl, **kwargs)
         except SSLError as ex:
             # Throw error if verify_ssl not set to false and server
             #  is not using verified certificate.

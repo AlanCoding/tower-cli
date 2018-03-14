@@ -82,3 +82,4 @@ setup_v2.py
 # for AWX install
 /awx
 .cache/
+awx.sqlite3
