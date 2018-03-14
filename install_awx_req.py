@@ -1,6 +1,6 @@
 from subprocess import call
 
-files = ['requirements.txt', 'requirements_dev.txt']
+files = ['requirements.txt', 'requirements_dev.txt', 'requirements_git.txt']
 
 
 seen = set([])
