@@ -11,12 +11,12 @@ matrix:
   allow_failures:
     - python: nightly
 install:
-    - ./install_awx.sh
-    - python install_awx_req.py
+    - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then ./install_awx.sh; fi
+    - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then python install_awx_req.py; fi
     - pip install -r requirements_dev.txt -r requirements.txt
 script:
     - flake8 tower-cli/ tests/
     - tox tests/
-    - py.test tests_awx/
+    - if [[ $TRAVIS_PYTHON_VERSION == '2.7' ]]; then py.test tests_awx/; fi
 after_success:
     coveralls
