@@ -40,6 +40,11 @@ CONFIG_OPTIONS = frozenset((
     'color', 'verbose', 'description_on', 'certificate',
     'use_token', 'oauth_token'
 ))
+# This mapping specifies alternative environment variables
+# which can also specify a config parameter
+ALT_ENV_OPTIONS = {
+    'verify_ssl': 'TOWER_IGNORE_SSL'
+}
 
 
 class Parser(configparser.ConfigParser):
@@ -331,6 +336,19 @@ def config_from_environment():
         v = os.getenv(env, None)
         if v is not None:
             kwargs[k] = v
+        elif k in ALT_ENV_OPTIONS:
+            env_alt = ALT_ENV_OPTIONS[k]
+            os.environ.get("TOWER_IGNORE_SSL", "1").lower() in ("1", "yes", "true")
+            v = os.getenv(env_alt, None)
+            if v is not None:
+                # special logic for mis-matched meaning
+                if env_alt == 'TOWER_IGNORE_SSL':
+                    v = v.lower()
+                    if v in ("1", "yes", "true"):
+                        v = 'false'  # ignore SSL -> do not verify SSL
+                    else:
+                        v = 'true'  # do not ignore SSL -> yes, verify
+                kwargs[k] = v
     return kwargs
 
 
