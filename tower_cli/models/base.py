@@ -318,6 +318,9 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
         """Overwrite this method to handle specific corner cases to the url passed to PATCH method."""
         return url + '%s/' % pk
 
+    def update_from_existing(self, new_data, existing_data):
+        pass
+
     def write(self, pk=None, create_on_missing=False, fail_on_found=False, force_on_exists=True, **kwargs):
         """
         =====API DOCS=====
@@ -396,6 +399,8 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
         for key in kwargs:
             if kwargs[key] == 'null':
                 kwargs[key] = None
+
+        self.update_from_existing(kwargs, existing_data)
 
         # Get the URL and method to use for the write.
         url = self.endpoint
