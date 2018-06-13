@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import functools
+from distutils.util import strtobool
 
 import click
 
@@ -44,3 +45,7 @@ def supports_oauth():
     except exceptions.NotFound:
         return False
     return resp.ok
+
+
+def str_to_bool(value):
+    return bool(strtobool(value))

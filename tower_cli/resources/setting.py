@@ -14,7 +14,6 @@
 
 import ast
 import json
-from distutils.util import strtobool
 
 import click
 import six
@@ -23,6 +22,7 @@ from tower_cli import models, resources, exceptions as exc
 from tower_cli.api import client
 from tower_cli.conf import pop_option
 from tower_cli.cli import types
+from tower_cli.utils import str_to_bool
 from tower_cli.utils.data_structures import OrderedDict
 
 
@@ -153,7 +153,7 @@ class Resource(models.Resource):
         if to_type == 'integer':
             return int(value)
         elif to_type == 'boolean':
-            return bool(strtobool(value))
+            return str_to_bool(value)
         elif to_type in ('list', 'nested object'):
             return ast.literal_eval(value)
         return value

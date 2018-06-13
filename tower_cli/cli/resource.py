@@ -362,6 +362,7 @@ class ResSubcommand(click.MultiCommand):
                     type=field.type,
                     show_default=field.show_default,
                     multiple=field.multiple,
+                    nargs=field.nargs,
                     is_eager=False
                 )(new_method)
 

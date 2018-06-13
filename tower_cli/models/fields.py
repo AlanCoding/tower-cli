@@ -45,7 +45,7 @@ class Field(BaseField):
                  display=True, filterable=True, help_text=None,
                  is_option=True, password=False, read_only=False,
                  required=True, show_default=False, unique=False,
-                 multiple=False, no_lookup=False, col_width=None):
+                 multiple=False, nargs=1, no_lookup=False, col_width=None):
         # Init the name to blank.
         # What's going on here: This is set by the ResourceMeta metaclass
         # when the **resource** is instantiated.
@@ -67,6 +67,7 @@ class Field(BaseField):
         self.show_default = show_default
         self.unique = unique
         self.multiple = multiple
+        self.nargs = nargs
         self.no_lookup = no_lookup
         self.col_width = col_width
 

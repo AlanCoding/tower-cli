@@ -318,6 +318,9 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
         """Overwrite this method to handle specific corner cases to the url passed to PATCH method."""
         return url + '%s/' % pk
 
+    def update_from_existing(self, new_data, existing_data):
+        pass
+
     def write(self, pk=None, create_on_missing=False, fail_on_found=False, force_on_exists=True, **kwargs):
         """
         =====API DOCS=====
@@ -385,17 +388,19 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
             answer.update(existing_data)
             return answer
 
+        # Reinsert None for special case of null association
+        for key in kwargs:
+            if kwargs[key] == 'null':
+                kwargs[key] = None
+
+        self.update_from_existing(kwargs, existing_data)
+
         # Similarly, if all existing data matches our write parameters, there's no need to do anything.
         if all([kwargs[k] == existing_data.get(k, None) for k in kwargs.keys()]):
             debug.log('All provided fields match existing data; do nothing.', header='decision', nl=2)
             answer = OrderedDict((('changed', False), ('id', pk)))
             answer.update(existing_data)
             return answer
-
-        # Reinsert None for special case of null association
-        for key in kwargs:
-            if kwargs[key] == 'null':
-                kwargs[key] = None
 
         # Get the URL and method to use for the write.
         url = self.endpoint

@@ -471,11 +471,12 @@ class ResourceTests(unittest.TestCase):
     def test_write_with_null_field(self):
         """Establish that a resource with 'null' field is written."""
         with client.test_mode as t:
-            t.register_json('/foo/42/', {'id': 42, 'name': 'bar',
+            t.register_json('/foo/42/', {'id': 42, 'name': 'bar', 'inventory': 49,
                                          'description': 'baz'}, method='GET')
             t.register_json('/foo/42/', {'name': 'bar', 'id': 42,
                                          'inventory': 'null'}, method='PATCH')
-            self.res.write(42, inventory='null')
+            r = self.res.write(42, inventory='null')
+            assert r['changed']
             self.assertEqual(json.loads(t.requests[1].body)['inventory'], None)
 
     def test_delete_with_pk(self):
