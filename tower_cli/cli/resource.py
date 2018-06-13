@@ -313,7 +313,7 @@ class ResSubcommand(click.MultiCommand):
         # bottom-to-top.)
         click_params = getattr(method, '__click_params__', [])
         new_method.__click_params__ = copy(click_params)
-        new_method = with_global_options(new_method)
+        new_method = with_global_options()(new_method)
 
         # Write options based on the fields available on this resource.
         fao = attrs.pop('use_fields_as_options', True)

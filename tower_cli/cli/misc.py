@@ -26,7 +26,7 @@ from requests.exceptions import RequestException
 
 from tower_cli import __version__, exceptions as exc
 from tower_cli.api import client
-from tower_cli.conf import with_global_options, Parser, settings, _apply_runtime_setting
+from tower_cli.conf import with_global_options, Parser, settings
 from tower_cli.utils import secho, supports_oauth
 from tower_cli.constants import CUR_API_VERSION
 from tower_cli.cli.transfer.common import SEND_ORDER
@@ -35,7 +35,7 @@ __all__ = ['version', 'config', 'login', 'logout', 'receive', 'send', 'empty']
 
 
 @click.command()
-@with_global_options
+@with_global_options()
 def version(**kwargs):
     """Display full version information."""
 
@@ -78,6 +78,7 @@ def _echo_setting(key):
 # Note: This uses `click.command`, not `tower_cli.utils.decorators.command`,
 # because we don't want the "global" options that t.u.d.command adds.
 @click.command()
+@with_global_options(hidden=True)
 @click.argument('key', required=False)
 @click.argument('value', required=False)
 @click.option('global_', '--global', is_flag=True,
@@ -214,15 +215,13 @@ def config(key=None, value=None, scope='user', global_=False, unset=False):
 # Someday it would be nice to create these for us
 # Thus the import reference to transfer.common.SEND_ORDER
 @click.command()
+@with_global_options(hidden=True)
 @click.argument('username', required=True)
 @click.option('--password', required=True, prompt=True, hide_input=True)
 @click.option('--client-id', required=False)
 @click.option('--client-secret', required=False)
 @click.option('--scope', required=False, default='write',
               type=click.Choice(['read', 'write']))
-@click.option('-v', '--verbose', default=None,
-              help='Show information about requests being made.', is_flag=True,
-              required=False, callback=_apply_runtime_setting, is_eager=True)
 def login(username, password, scope, client_id, client_secret, verbose):
     """
     Retrieves and stores an OAuth2 personal auth token.
@@ -298,7 +297,7 @@ def logout():
 
 
 @click.command()
-@with_global_options
+@with_global_options()
 @click.option('--organization', required=False, multiple=True)
 @click.option('--user', required=False, multiple=True)
 @click.option('--team', required=False, multiple=True)
@@ -333,7 +332,7 @@ def receive(organization=None, user=None, team=None, credential_type=None, crede
 
 
 @click.command()
-@with_global_options
+@with_global_options()
 @click.argument('source', required=False, nargs=-1)
 @click.option('--prevent', multiple=True, required=False,
               help='Prevents import of a specific asset type.\n'
@@ -367,7 +366,7 @@ def send(source=None, prevent=None, secret_management='default', no_color=False)
 
 
 @click.command()
-@with_global_options
+@with_global_options()
 @click.option('--organization', required=False, multiple=True)
 @click.option('--user', required=False, multiple=True)
 @click.option('--team', required=False, multiple=True)
