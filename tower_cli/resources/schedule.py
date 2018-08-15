@@ -70,7 +70,7 @@ def jt_aggregate(func, is_create=False, has_pk=False):
     def decorator_without_pk(obj, *args, **kwargs):
         old_endpoint = obj.endpoint
         new_endpoint = helper(kwargs, obj)
-        if is_create:
+        if new_endpoint:
             obj.endpoint = new_endpoint
         result = func(obj, *args, **kwargs)
         obj.endpoint = old_endpoint
@@ -79,7 +79,7 @@ def jt_aggregate(func, is_create=False, has_pk=False):
     def decorator_with_pk(obj, pk=None, *args, **kwargs):
         old_endpoint = obj.endpoint
         new_endpoint = helper(kwargs, obj)
-        if is_create:
+        if new_endpoint:
             obj.endpoint = new_endpoint
         result = func(obj, pk=pk, *args, **kwargs)
         obj.endpoint = old_endpoint
