@@ -17,6 +17,7 @@ from __future__ import absolute_import, unicode_literals
 import os
 import re
 import six
+import json
 
 import click
 
@@ -72,14 +73,26 @@ class StructuredInput(Variables):
     name = 'structured_input'
     __name__ = 'structured_input'
 
+    def __init__(self, allow_kv=False, as_string=False):
+        self.allow_kv = allow_kv
+        # The API is inconsistent about which format it requires
+        # some fields must string-ify variables, and others can
+        # pass variables as a dictionary
+        self.as_string = as_string
+        super(StructuredInput, self).__init__()
+
     def convert(self, value, param, ctx):
         s = super(StructuredInput, self).convert(value, param, ctx)
         try:
-            return string_to_dict(s, allow_kv=False)
-        except Exception:
+            data = string_to_dict(s, allow_kv=self.allow_kv)
+            if self.as_string:
+                return json.dumps(data)
+            return data
+        except Exception as e:
             raise exc.UsageError(
                 'Error loading structured input given by %s parameter. Please '
-                'check the validity of your JSON/YAML format.' % param.name
+                'check the validity of your JSON/YAML format. '
+                'Parse error: %s' % (param.name, e)
             )
 
 

@@ -30,7 +30,8 @@ class Resource(models.Resource):
     description = models.Field(required=False, display=False)
     inventory = models.Field(type=types.Related('inventory'))
     enabled = models.Field(type=bool, required=False)
-    variables = models.Field(type=types.Variables(), required=False, display=False,
+    variables = models.Field(type=types.StructuredInput(allow_kv=True, as_string=True),
+                             required=False, display=False,
                              help_text='Host variables, use "@" to get from file.')
     insights_system_id = models.Field(required=False, display=False)
 
