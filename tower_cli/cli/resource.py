@@ -353,6 +353,8 @@ class ResSubcommand(click.MultiCommand):
                     option_help += ' Use @ to get JSON or YAML from a file.'
                 if field.required:
                     option_help = '[REQUIRED] ' + option_help
+                if field.deprecated:
+                    option_help = '[DEPRECATED] ' + option_help
                 elif field.read_only:
                     option_help = '[READ ONLY] ' + option_help
                 option_help = '[FIELD]' + option_help

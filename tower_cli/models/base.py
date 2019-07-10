@@ -423,6 +423,20 @@ class BaseResource(six.with_metaclass(ResourceMeta)):
         # Actually perform the write.
         r = getattr(client, method.lower())(url, data=kwargs)
 
+        # Check for deprecated fields that failed to take effect
+        failed_fields = []
+        for field in self.fields:
+            if field.deprecated and kwargs.get(field.name) and field.name not in r:
+                # Uh oh, user using field that have been removed
+                failed_fields.append(field)
+        if failed_fields:
+            if method == 'POST':
+                debug.log('Due to field error, will attempt to delete created item.')
+                self.delete(r.json()['id'])
+            raise exc.TowerCLIError(
+                'The provided fields %s were removed in an AWX or Tower release '
+                'and failed to take effect here.' % ' '.join([f.name for f in failed_fields]))
+
         # At this point, we know the write succeeded, and we know that data was changed in the process.
         answer = OrderedDict((('changed', True), ('id', r.json()['id'])))
         answer.update(r.json())

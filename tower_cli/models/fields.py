@@ -45,7 +45,8 @@ class Field(BaseField):
                  display=True, filterable=True, help_text=None,
                  is_option=True, password=False, read_only=False,
                  required=True, show_default=False, unique=False,
-                 multiple=False, no_lookup=False, col_width=None):
+                 multiple=False, no_lookup=False, col_width=None,
+                 deprecated=False):
         # Init the name to blank.
         # What's going on here: This is set by the ResourceMeta metaclass
         # when the **resource** is instantiated.
@@ -69,6 +70,7 @@ class Field(BaseField):
         self.multiple = multiple
         self.no_lookup = no_lookup
         self.col_width = col_width
+        self.deprecated = deprecated
 
         # If this is a password, display is always off.
         if self.password:

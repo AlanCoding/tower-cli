@@ -40,8 +40,8 @@ class Resource(models.SurveyResource):
     inventory = models.Field(type=types.Related('inventory'), required=False)
     project = models.Field(type=types.Related('project'))
     playbook = models.Field()
-    credential = models.Field(display=False, required=False, type=types.Related('credential'))
-    vault_credential = models.Field(type=types.Related('credential'), required=False, display=False)
+    credential = models.Field(display=False, required=False, type=types.Related('credential'), deprecated=True)
+    vault_credential = models.Field(type=types.Related('credential'), required=False, display=False, deprecated=True)
     forks = models.Field(type=int, required=False, display=False)
     limit = models.Field(required=False, display=False)
     verbosity = models.Field(
