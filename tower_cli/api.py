@@ -270,7 +270,11 @@ class Client(Session):
         # Sanity check: Did we get a forbidden response, which means that
         # the user isn't allowed to do this? Report that.
         if r.status_code == 403:
-            raise exc.Forbidden("You don't have permission to do that (HTTP 403).")
+            try:
+                detail = r.json()['detail']
+            except Exception:
+                detail = "You don't have permission to do that (HTTP 403)."
+            raise exc.Forbidden(detail)
 
         # Sanity check: Did we get a 404 response?
         # Requests with primary keys will return a 404 if there is no response,
